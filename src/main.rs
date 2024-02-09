@@ -22,6 +22,8 @@ fn main() {
     println!("LEN: {}", contents.len());
     let toks = lexer::tokenize(&contents);
 
+    let parser = parser::Parser::new(&contents, &toks);
+    parser.parse();
 
     // for tok in toks {
     //     println!("{tok:?},");

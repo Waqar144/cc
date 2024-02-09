@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused)]
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
@@ -30,6 +31,7 @@ enum NodeType {
     Cast,
 }
 
+#[derive(Clone)]
 pub struct StructMember {
     name: String,
     ty: Box<Type>, // TODO
@@ -293,7 +295,7 @@ impl Parser<'_> {
     fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<Object> {
         let mut locals: Vec<Object> = Vec::new();
         for ty in param_types {
-            locals.push(Self::new_variable(&ty.name, ty.ty));
+            locals.push(Self::new_variable(&ty.name, ty.ty.clone()));
         }
         locals
     }
@@ -375,9 +377,9 @@ impl Parser<'_> {
     }
 
     // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) type-suffix
-    fn declarator(&mut self, ty: &mut Type) -> (Type, &str) {
+    fn declarator(&mut self, ty: &mut Type) -> (Type, String) {
         while self.consume("*") {
-            *ty = pointer_to(*ty)
+            *ty = pointer_to((*ty).clone())
         }
 
         if self.next_token_equals("(") {
@@ -395,9 +397,9 @@ impl Parser<'_> {
             eprintln!("Expected an identifier!");
         }
         let name_token = self.peek().unwrap();
-        let name = self.text(&name_token);
+        let name = self.text(&name_token).to_string();
         self.tokens.next();
-        let ty = self.type_suffix(*ty);
+        let ty = self.type_suffix((*ty).clone());
         (ty, name)
     }
 
@@ -426,10 +428,8 @@ impl Parser<'_> {
         } else if self.next_token_equals("[") {
             self.skip("[");
             let tok = self.peek();
-            if let Some(tok) = tok {
-                if tok.kind != TokenKind::Numeric {
-                    eprintln!("Expected a number!");
-                }
+            if !self.next_token_kind_is(TokenKind::Numeric) {
+                eprintln!("Expected a number!");
             }
             let size = tok.unwrap().val.unwrap();
             self.tokens.next(); // skip number
@@ -442,7 +442,7 @@ impl Parser<'_> {
         }
     }
 
-    fn text(&self, token: &Token) -> &str {
+    fn text<'a>(&'a self, token: &'a Token) -> &str {
         token.text(self.source)
     }
 

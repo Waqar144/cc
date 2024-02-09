@@ -1,6 +1,16 @@
 #![allow(dead_code)]
 use crate::parser::StructMember;
 
+pub struct FuncParamType {
+    pub name: String,
+    pub ty: Type,
+}
+
+pub struct FuncType {
+    pub return_type: Box<Type>,
+    pub params: Vec<FuncParamType>,
+}
+
 pub enum Type {
     Void {
         size: usize,
@@ -27,10 +37,7 @@ pub enum Type {
         alignment: usize,
         base: Box<Type>,
     },
-    Func {
-        return_type: Box<Type>,
-        params: Vec<Type>,
-    },
+    Func(FuncType),
     Array {
         size: usize,
         alignment: usize,
@@ -82,11 +89,11 @@ pub fn pointer_to(base: Type) -> Type {
     }
 }
 
-pub fn func_type(return_type: Type, params: Vec<Type>) -> Type {
-    Type::Func {
+pub fn func_type(return_type: Type, params: Vec<FuncParamType>) -> Type {
+    Type::Func(FuncType {
         return_type: Box::new(return_type),
         params,
-    }
+    })
 }
 
 pub fn array_of(base_ty: Type, len: usize) -> Type {
@@ -101,10 +108,6 @@ pub fn array_of(base_ty: Type, len: usize) -> Type {
             alignment,
             base,
         } => (size, alignment),
-        Type::Func {
-            return_type,
-            params,
-        } => panic!(),
         Type::Array {
             size,
             alignment,
@@ -121,7 +124,7 @@ pub fn array_of(base_ty: Type, len: usize) -> Type {
             alignment,
             members,
         } => (size, alignment),
-        Type::NoType => panic!(),
+        _ => panic!(),
     };
 
     Type::Array {

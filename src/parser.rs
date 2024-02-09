@@ -85,27 +85,64 @@ struct Node {
     // std::vector<NodePtr> args;
 }
 
-struct Object {
+struct FunctionObject {
     name: String,
-    offset: i32,
-    ty: Box<Type>, // TODO
-    is_local: bool,
-    is_func: bool,
+    locals: Vec<Object>,
+    params: Vec<Object>,
     is_func_def: bool,
+    body: Vec<Box<Node>>,
+}
 
-    // function
-    locals: Vec<Box<Object>>,
-    params: Vec<Box<Object>>,
-    body: Vec<Box<Node>>, // TODO
-    // std::vector<NodePtr> body;
-    stack_size: usize,
-    init_data: String,
-    // Type* type = nullptr;
+struct VarObject {
+    name: String,
+    ty: Type,
+}
+
+enum Object {
+    FunctionObject(FunctionObject),
+    VarObject(VarObject),
+    Invalid,
+}
+
+// struct Object {
+//     name: String,
+//     offset: i32,
+//     ty: Box<Type>, // TODO
+//     is_local: bool,
+//     is_func: bool,
+//     is_func_def: bool,
+//
+//     // function
+//     locals: Vec<Box<Object>>,
+//     params: Vec<Box<Object>>,
+//     body: Vec<Box<Node>>, // TODO
+//     // std::vector<NodePtr> body;
+//     stack_size: usize,
+//     init_data: String,
+//     // Type* type = nullptr;
+// }
+
+struct VarScope<'a> {
+    name: &'a str,
+    var: Box<Object>,
+    type_def: Option<Type>,
+}
+
+struct TagScope<'a> {
+    name: &'a str,
+    ty: Type,
+}
+
+#[derive(Default)]
+struct VarAttr {
+    is_typedef: bool,
 }
 
 pub struct Parser<'a> {
     source: &'a str,
     globals: Vec<Object>,
+    var_scopes: Vec<VarScope<'a>>,
+    tag_scopes: Vec<TagScope<'a>>,
     tokens: std::iter::Peekable<std::slice::Iter<'a, Token>>,
 }
 
@@ -132,6 +169,8 @@ impl Parser<'_> {
         Parser {
             source,
             globals: Vec::new(),
+            var_scopes: Vec::new(),
+            tag_scopes: Vec::new(),
             tokens: tokens.iter().peekable(),
         }
     }
@@ -144,8 +183,16 @@ impl Parser<'_> {
                 }
             }
 
+            let mut attr = VarAttr::default();
+            if attr.is_typedef {
+                // parse_typedef(s, it, baseType);
+                continue;
+            }
+
+            let base_type = self.declspec(&mut attr);
+
             if self.is_function() {
-                //
+                // self.function();
             }
         }
 
@@ -170,7 +217,7 @@ impl Parser<'_> {
         self.tokens.next();
     }
 
-    fn declspec(&mut self) -> Type {
+    fn declspec(&mut self, var_attr: &mut VarAttr) -> Type {
         enum CTypes {
             VOID = 1 << 0,
             CHAR = 1 << 2,
@@ -235,8 +282,59 @@ impl Parser<'_> {
         ty
     }
 
-    fn function(&mut self) {
-        //
+    fn new_variable(name: &str, ty: Type) -> Object {
+        Object::VarObject(VarObject {
+            name: name.to_string(),
+            ty,
+        })
+        // push_scope();
+    }
+
+    fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<Object> {
+        let mut locals: Vec<Object> = Vec::new();
+        for ty in param_types {
+            locals.push(Self::new_variable(&ty.name, ty.ty));
+        }
+        locals
+    }
+
+    fn function(&mut self, base_ty: Type) -> Object {
+        let mut base_ty = base_ty;
+        let (ty, ident) = self.declarator(&mut base_ty);
+
+        // enter scope
+
+        let is_func_def = !self.consume(";");
+        if !is_func_def {
+            return Object::FunctionObject(FunctionObject {
+                name: ident.to_string(),
+                locals: Vec::new(),
+                params: Vec::new(),
+                is_func_def: false,
+                body: Vec::new(),
+            });
+        }
+
+        if let Type::Func(func) = ty {
+            let params = self.create_param_local_vars(&func.params);
+            if self.consume("{") {
+                self.tokens.next();
+            }
+
+            // call -> compound stmt
+
+            return Object::FunctionObject(FunctionObject {
+                name: ident.to_string(),
+                locals: Vec::new(),
+                params,
+                is_func_def: false,
+                body: Vec::new(),
+            });
+        }
+
+        eprintln!("Expected function type!");
+        // leave scope
+        Object::Invalid
     }
 
     fn is_typename(&self, token_text: &str) -> bool {
@@ -260,10 +358,7 @@ impl Parser<'_> {
             let mut ty = Type::NoType;
             let (ty, _) = self.declarator(&mut ty);
             match ty {
-                Type::Func {
-                    return_type,
-                    params,
-                } => true,
+                Type::Func(_) => true,
                 _ => false,
             }
         }
@@ -291,6 +386,8 @@ impl Parser<'_> {
             let mut dummy = Type::NoType;
             self.declarator(&mut dummy);
 
+            // TODO
+
             self.skip(")");
         }
 
@@ -305,14 +402,18 @@ impl Parser<'_> {
     }
 
     fn func_params(&mut self, return_ty: Type) -> Type {
-        let mut params: Vec<Type> = Vec::new();
+        let mut params: Vec<FuncParamType> = Vec::new();
         while !self.next_token_equals(")") {
             if self.next_token_equals(",") {
                 self.skip(",");
             }
-            let mut base_type = self.declspec();
-            let (ty, _) = self.declarator(&mut base_type);
-            params.push(ty);
+            let mut attr = VarAttr::default();
+            let mut base_type = self.declspec(&mut attr);
+            let (ty, name) = self.declarator(&mut base_type);
+            params.push(FuncParamType {
+                name: name.to_string(),
+                ty,
+            });
         }
         let ty = func_type(return_ty, params);
         self.tokens.next();

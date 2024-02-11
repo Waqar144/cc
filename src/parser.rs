@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused)]
+
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
@@ -92,7 +93,7 @@ struct FunctionObject {
     locals: Vec<Object>,
     params: Vec<Object>,
     is_func_def: bool,
-    body: Vec<Box<Node>>,
+    body: Vec<Node>,
 }
 
 struct VarObject {
@@ -106,28 +107,10 @@ enum Object {
     Invalid,
 }
 
-// struct Object {
-//     name: String,
-//     offset: i32,
-//     ty: Box<Type>, // TODO
-//     is_local: bool,
-//     is_func: bool,
-//     is_func_def: bool,
-//
-//     // function
-//     locals: Vec<Box<Object>>,
-//     params: Vec<Box<Object>>,
-//     body: Vec<Box<Node>>, // TODO
-//     // std::vector<NodePtr> body;
-//     stack_size: usize,
-//     init_data: String,
-//     // Type* type = nullptr;
-// }
-
 struct VarScope<'a> {
     name: &'a str,
-    var: Box<Object>,
-    type_def: Option<Type>,
+    var: &'a Object,
+    typedef: Option<Type>,
 }
 
 struct TagScope<'a> {
@@ -135,44 +118,36 @@ struct TagScope<'a> {
     ty: Type,
 }
 
+enum Scope {
+    Object { name: String },
+    TypeDef { name: String, typedef: Type },
+}
+
 #[derive(Default)]
 struct VarAttr {
     is_typedef: bool,
 }
 
+// Block level scope
+#[derive(Default)]
+struct Scopes<'a> {
+    var_scopes: Vec<Scope>,
+    tag_scopes: Vec<TagScope<'a>>,
+}
+
 pub struct Parser<'a> {
     source: &'a str,
     globals: Vec<Object>,
-    var_scopes: Vec<VarScope<'a>>,
-    tag_scopes: Vec<TagScope<'a>>,
+    scopes: Vec<Scopes<'a>>,
     tokens: std::iter::Peekable<std::slice::Iter<'a, Token>>,
 }
-
-// struct TokenIterator<'a> {
-//     tokens: &'a [Token],
-// }
-//
-// impl TokenIterator<'_> {
-//     fn peek(&self) -> Option<&Token> {
-//         self.tokens.first()
-//     }
-// }
-
-// impl<'a> Iterator for TokenIterator<'a> {
-//     type Item = &'a Token;
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.tokens.first()
-//     }
-// }
 
 impl Parser<'_> {
     pub fn new<'a>(source: &'a str, tokens: &'a Vec<Token>) -> Parser<'a> {
         Parser {
             source,
             globals: Vec::new(),
-            var_scopes: Vec::new(),
-            tag_scopes: Vec::new(),
+            scopes: Vec::new(),
             tokens: tokens.iter().peekable(),
         }
     }
@@ -194,17 +169,10 @@ impl Parser<'_> {
             let base_type = self.declspec(&mut attr);
 
             if self.is_function() {
-                // self.function();
+                self.function(base_type);
+                continue;
             }
         }
-
-        // while let Some(token) = tok_iter.next() {
-        //     if token.kind == TokenKind::TOKEOF {
-        //         break;
-        //     }
-        //
-        //     self.declspec(&mut tok_iter);
-        // }
     }
 
     fn peek(&mut self) -> Option<Token> {
@@ -284,18 +252,38 @@ impl Parser<'_> {
         ty
     }
 
-    fn new_variable(name: &str, ty: Type) -> Object {
-        Object::VarObject(VarObject {
+    fn enter_scope(&mut self) {
+        self.scopes.push(Scopes::default())
+    }
+
+    fn leave_scope(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn push_var_scope<'a>(&mut self, name: String) {
+        assert!(!self.scopes.is_empty());
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .var_scopes
+            .push(Scope::Object { name });
+    }
+
+    fn new_variable(&mut self, name: &str, ty: Type) -> Object {
+        let obj = Object::VarObject(VarObject {
             name: name.to_string(),
             ty,
-        })
-        // push_scope();
+        });
+        self.push_var_scope(name.to_string());
+        obj
     }
 
     fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<Object> {
         let mut locals: Vec<Object> = Vec::new();
         for ty in param_types {
-            locals.push(Self::new_variable(&ty.name, ty.ty.clone()));
+            locals.push(self.new_variable(&ty.name, ty.ty.clone()));
+            let obj = locals.last().unwrap();
+            // self.push_scope(&ty.name, &obj, None);
         }
         locals
     }
@@ -304,17 +292,22 @@ impl Parser<'_> {
         let mut base_ty = base_ty;
         let (ty, ident) = self.declarator(&mut base_ty);
 
+        let mut function = Object::FunctionObject(FunctionObject {
+            name: ident.clone(),
+            locals: Vec::new(),
+            params: Vec::new(),
+            is_func_def: false,
+            body: Vec::new(),
+        });
+
+        self.push_var_scope(ident.clone());
+
         // enter scope
+        self.enter_scope();
 
         let is_func_def = !self.consume(";");
         if !is_func_def {
-            return Object::FunctionObject(FunctionObject {
-                name: ident.to_string(),
-                locals: Vec::new(),
-                params: Vec::new(),
-                is_func_def: false,
-                body: Vec::new(),
-            });
+            return function;
         }
 
         if let Type::Func(func) = ty {
@@ -325,6 +318,7 @@ impl Parser<'_> {
 
             // call -> compound stmt
 
+            self.leave_scope();
             return Object::FunctionObject(FunctionObject {
                 name: ident.to_string(),
                 locals: Vec::new(),
@@ -335,7 +329,6 @@ impl Parser<'_> {
         }
 
         eprintln!("Expected function type!");
-        // leave scope
         Object::Invalid
     }
 
@@ -358,7 +351,7 @@ impl Parser<'_> {
             false
         } else {
             let mut ty = Type::NoType;
-            let (ty, _) = self.declarator(&mut ty);
+            let (ty, x) = self.declarator(&mut ty);
             match ty {
                 Type::Func(_) => true,
                 _ => false,

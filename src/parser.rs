@@ -118,7 +118,7 @@ pub struct Parser<'a> {
     globals: Vec<Object>,
     scopes: Vec<Scopes<'a>>,
     locals: Cell<Vec<VarObject>>,
-    tokens: std::iter::Peekable<std::slice::Iter<'a, Token>>,
+    tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
 }
 
 impl Parser<'_> {
@@ -128,13 +128,13 @@ impl Parser<'_> {
             globals: Vec::new(),
             scopes: Vec::new(),
             locals: Cell::new(Vec::new()),
-            tokens: tokens.iter().peekable(),
+            tokens: tokens.iter().peekable().into(),
         }
     }
 
     pub fn parse(&mut self) {
         loop {
-            if let Some(tok) = self.tokens.peek() {
+            if let Some(tok) = self.peek() {
                 if tok.kind == TokenKind::TOKEOF {
                     break;
                 }
@@ -142,14 +142,18 @@ impl Parser<'_> {
 
             let mut attr = VarAttr::default();
             let base_type = self.declspec(&mut attr);
-            println!("B_T: {:?}", base_type);
 
             if attr.is_typedef {
                 self.parse_typedef(base_type);
                 continue;
             }
 
+            // copy the iterator, is_function will perform a look ahead
+            // and we will need the copy to rewind back
+            let tokens_copy = self.tokens.get_mut().clone();
             if self.is_function() {
+                // reset the iterator
+                self.tokens.set(tokens_copy);
                 let func = self.function(base_type);
                 self.globals.push(func);
                 continue;
@@ -158,7 +162,7 @@ impl Parser<'_> {
     }
 
     fn peek(&mut self) -> Option<Token> {
-        self.tokens.peek().cloned().cloned()
+        self.tokens.get_mut().peek().cloned().cloned()
     }
 
     fn skip(&mut self, s: &str) {
@@ -166,7 +170,7 @@ impl Parser<'_> {
             eprintln!("Expected {s}");
             return;
         }
-        self.tokens.next();
+        self.tokens.get_mut().next();
     }
 
     fn declspec(&mut self, var_attr: &mut VarAttr) -> Type {
@@ -228,7 +232,7 @@ impl Parser<'_> {
                 }
             };
 
-            self.tokens.next(); // advance
+            self.tokens.get_mut().next(); // advance
         }
 
         ty
@@ -312,9 +316,10 @@ impl Parser<'_> {
         if let Type::Func(func) = ty {
             let params = self.create_param_local_vars(&func.params);
             if self.consume("{") {
-                self.tokens.next();
+                self.tokens.get_mut().next();
             }
 
+            println!("compound_stmt...");
             let body = self.compound_stmt();
 
             self.leave_scope();
@@ -439,7 +444,7 @@ impl Parser<'_> {
     fn consume(&mut self, text: &str) -> bool {
         if let Some(token) = self.peek() {
             if self.text(&token) == text {
-                self.tokens.next();
+                self.tokens.get_mut().next();
                 return true;
             }
         }
@@ -468,7 +473,7 @@ impl Parser<'_> {
         }
         let name_token = self.peek().unwrap();
         let name = self.text(&name_token).to_string();
-        self.tokens.next();
+        self.tokens.get_mut().next();
         let ty = self.type_suffix((*ty).clone());
         (ty, name)
     }
@@ -488,7 +493,7 @@ impl Parser<'_> {
             });
         }
         let ty = func_type(return_ty, params);
-        self.tokens.next();
+        self.tokens.get_mut().next();
         ty
     }
 
@@ -503,7 +508,7 @@ impl Parser<'_> {
                 eprintln!("Expected a number!");
             }
             let size = tok.unwrap().val.unwrap();
-            self.tokens.next(); // skip number
+            self.tokens.get_mut().next(); // skip number
             self.skip("]");
 
             let ty = self.type_suffix(ty);
@@ -530,7 +535,7 @@ impl Parser<'_> {
     }
 
     fn next_token_text(&mut self) -> &str {
-        if let Some(tok) = self.tokens.peek() {
+        if let Some(tok) = self.tokens.get_mut().peek() {
             tok.text(&self.source)
         } else {
             panic!()

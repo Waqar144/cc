@@ -2,19 +2,19 @@
 #![allow(unused)]
 use crate::parser::StructMember;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FuncParamType {
     pub name: String,
     pub ty: Type,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FuncType {
     pub return_type: Box<Type>,
     pub params: Vec<FuncParamType>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Type {
     Void {
         size: usize,
@@ -67,19 +67,19 @@ pub fn void_type() -> Type {
     }
 }
 pub fn int_type() -> Type {
-    Type::Void {
+    Type::Int {
         size: 4,
         alignment: 4,
     }
 }
 pub fn char_type() -> Type {
-    Type::Void {
+    Type::Char {
         size: 1,
         alignment: 1,
     }
 }
 pub fn long_type() -> Type {
-    Type::Void {
+    Type::Long {
         size: 8,
         alignment: 8,
     }

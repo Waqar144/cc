@@ -494,6 +494,7 @@ impl Parser<'_> {
 
     fn type_suffix(&mut self, ty: Type) -> Type {
         if self.next_token_equals("(") {
+            self.skip("(");
             self.func_params(ty)
         } else if self.next_token_equals("[") {
             self.skip("[");

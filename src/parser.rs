@@ -517,11 +517,7 @@ impl Parser<'_> {
     }
 
     fn next_token_equals(&mut self, s: &str) -> bool {
-        if let Some(tok) = self.peek() {
-            self.text(&tok) == s
-        } else {
-            false
-        }
+        self.next_token_text() == s
     }
 
     fn next_token_kind_is(&mut self, kind: TokenKind) -> bool {
@@ -529,6 +525,14 @@ impl Parser<'_> {
             tok.kind == kind
         } else {
             false
+        }
+    }
+
+    fn next_token_text(&mut self) -> &str {
+        if let Some(tok) = self.tokens.peek() {
+            tok.text(&self.source)
+        } else {
+            panic!()
         }
     }
 }

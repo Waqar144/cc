@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use std::cell::Cell;
+
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
@@ -9,8 +11,13 @@ struct Block {
     block_body: Vec<Node>,
 }
 
+struct Variable {
+    var: Object,
+}
+
 enum Node {
     Block(Block),
+    Variable(Variable),
 }
 
 enum NodeType {
@@ -41,70 +48,22 @@ enum NodeType {
     Cast,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StructMember {
     name: String,
     ty: Box<Type>, // TODO
     offset: usize,
-    // Type* type;
-    // int offset;
 }
-
-// struct Node {
-//     // using NodePtr = std::unique_ptr<Node>;
-//     // using TokenIterator = std::vector<Token>::const_iterator;
-//     // TokenIterator token;
-//     /* Position in source */
-//     token: Token,
-//
-//     /* Type of node */
-//     // NodeType nodeType;
-//     node_type: NodeType,
-//
-//     /* Value if node is a 'Number' node */
-//     // int64_t val = -1;
-//     val: isize,
-//
-//     left: Box<Node>,
-//     right: Box<Node>,
-//     // NodePtr left = nullptr;
-//     // NodePtr right = nullptr;
-//
-//     // variable
-//     // Object* var = nullptr; // shared between multiple nodes, TODO: revisit this (maybe use shared_ptr<>)
-//     var: Box<Object>,
-//
-//     // if stmt
-//     cond: Box<Node>,
-//     then: Box<Node>,
-//     els: Box<Node>,
-//     // NodePtr cond = nullptr;
-//     // NodePtr then = nullptr;
-//     // NodePtr els = nullptr; // else
-//     init: Box<Node>,
-//     inc: Box<Node>,
-//     // NodePtr init = nullptr;
-//     // NodePtr inc = nullptr;
-//     ty: Box<Type>,
-//     // Type* type = nullptr;
-//     member: StructMember,
-//     // StructMember member;
-//     block_body: Vec<Box<Node>>,
-//     // std::vector<NodePtr> blockBody;
-//     func_name: String,
-//     // std::string_view funcName;
-//     args: Vec<Box<Node>>,
-//     // std::vector<NodePtr> args;
-// }
 
 struct FunctionObject {
     name: String,
-    locals: Vec<Object>,
+    locals: Vec<VarObject>,
     params: Vec<Object>,
     is_func_def: bool,
     body: Vec<Node>,
 }
 
+#[derive(Clone)]
 struct VarObject {
     name: String,
     ty: Type,
@@ -114,6 +73,16 @@ enum Object {
     FunctionObject(FunctionObject),
     VarObject(VarObject),
     Invalid,
+}
+
+impl Object {
+    fn as_var_object(self) -> VarObject {
+        if let Self::VarObject(v) = self {
+            v
+        } else {
+            panic!()
+        }
+    }
 }
 
 struct VarScope<'a> {
@@ -148,6 +117,7 @@ pub struct Parser<'a> {
     source: &'a str,
     globals: Vec<Object>,
     scopes: Vec<Scopes<'a>>,
+    locals: Cell<Vec<VarObject>>,
     tokens: std::iter::Peekable<std::slice::Iter<'a, Token>>,
 }
 
@@ -157,6 +127,7 @@ impl Parser<'_> {
             source,
             globals: Vec::new(),
             scopes: Vec::new(),
+            locals: Cell::new(Vec::new()),
             tokens: tokens.iter().peekable(),
         }
     }
@@ -171,6 +142,7 @@ impl Parser<'_> {
 
             let mut attr = VarAttr::default();
             let base_type = self.declspec(&mut attr);
+            println!("B_T: {:?}", base_type);
 
             if attr.is_typedef {
                 self.parse_typedef(base_type);
@@ -178,7 +150,8 @@ impl Parser<'_> {
             }
 
             if self.is_function() {
-                self.function(base_type);
+                let func = self.function(base_type);
+                self.globals.push(func);
                 continue;
             }
         }
@@ -298,11 +271,17 @@ impl Parser<'_> {
 
     fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<Object> {
         let mut locals: Vec<Object> = Vec::new();
+        let mut fn_locals = Vec::new();
         for ty in param_types {
             locals.push(self.new_variable(&ty.name, ty.ty.clone()));
-            let obj = locals.last().unwrap();
-            // self.push_scope(&ty.name, &obj, None);
+            // Copy into function locals, dont use new_variable because we dont' want to duplicate varscope
+            let obj = VarObject {
+                name: ty.name.clone(),
+                ty: ty.ty.clone(),
+            };
+            fn_locals.push(obj);
         }
+        self.locals.set(fn_locals);
         locals
     }
 
@@ -320,6 +299,8 @@ impl Parser<'_> {
 
         self.push_var_scope(ident.clone());
 
+        // clear
+        self.locals.take();
         // enter scope
         self.enter_scope();
 
@@ -334,15 +315,15 @@ impl Parser<'_> {
                 self.tokens.next();
             }
 
-            // call -> compound stmt
+            let body = self.compound_stmt();
 
             self.leave_scope();
             return Object::FunctionObject(FunctionObject {
                 name: ident.to_string(),
-                locals: Vec::new(),
+                locals: self.locals.take(),
                 params,
                 is_func_def: false,
-                body: Vec::new(),
+                body: vec![body],
             });
         }
 
@@ -370,7 +351,7 @@ impl Parser<'_> {
                     self.parse_typedef(base_ty);
                     continue;
                 }
-                // decl
+                self.declaration(base_ty);
             } else {
                 // stmt
             }
@@ -398,6 +379,33 @@ impl Parser<'_> {
             let mut base_ty = base_ty.clone();
             let (ty, name) = self.declarator(&mut base_ty);
             self.push_typedef_scope(name, ty);
+        }
+    }
+
+    fn declaration(&mut self, base_ty: Type) {
+        let mut first = true;
+        while (!self.next_token_equals(";")) {
+            if !first {
+                self.skip(",");
+            }
+
+            let mut base_ty = base_ty.clone();
+            let (ty, name) = self.declarator(&mut base_ty);
+            if let Type::Void { size, alignment } = ty {
+                eprintln!("unexpected void type"); // TODO proper error reporting
+            }
+
+            let var = self.new_variable(&name, ty.clone());
+            let mut locals = self.locals.take();
+            locals.push(var.as_var_object());
+
+            if !self.next_token_equals("-") {
+                continue;
+            }
+
+            let lhs = Node::Variable(Variable {
+                var: self.new_variable(&name, ty),
+            });
         }
     }
 

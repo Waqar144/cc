@@ -170,12 +170,12 @@ impl Parser<'_> {
             }
 
             let mut attr = VarAttr::default();
+            let base_type = self.declspec(&mut attr);
+
             if attr.is_typedef {
-                // parse_typedef(s, it, baseType);
+                self.parse_typedef(base_type);
                 continue;
             }
-
-            let base_type = self.declspec(&mut attr);
 
             if self.is_function() {
                 self.function(base_type);
@@ -278,6 +278,15 @@ impl Parser<'_> {
             .push(Scope::Object { name });
     }
 
+    fn push_typedef_scope<'a>(&mut self, name: String, ty: Type) {
+        assert!(!self.scopes.is_empty());
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .var_scopes
+            .push(Scope::TypeDef { name, typedef: ty });
+    }
+
     fn new_variable(&mut self, name: &str, ty: Type) -> Object {
         let obj = Object::VarObject(VarObject {
             name: name.to_string(),
@@ -355,9 +364,10 @@ impl Parser<'_> {
                 .unwrap_or(false);
             if (is_typename) {
                 let mut attr = VarAttr::default();
-                self.declspec(&mut attr);
+                let base_ty = self.declspec(&mut attr);
                 if (attr.is_typedef) {
                     // parse_typedef
+                    self.parse_typedef(base_ty);
                     continue;
                 }
                 // decl
@@ -375,6 +385,20 @@ impl Parser<'_> {
         self.skip("}");
 
         node
+    }
+
+    fn parse_typedef(&mut self, base_ty: Type) {
+        let mut first = true;
+        while (!self.consume(";")) {
+            if !first {
+                self.skip(",");
+            }
+
+            first = false;
+            let mut base_ty = base_ty.clone();
+            let (ty, name) = self.declarator(&mut base_ty);
+            self.push_typedef_scope(name, ty);
+        }
     }
 
     fn is_typename(&self, token_text: &str) -> bool {

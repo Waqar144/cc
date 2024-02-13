@@ -4,6 +4,15 @@
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
+struct Block {
+    token: Token,
+    block_body: Vec<Node>,
+}
+
+enum Node {
+    Block(Block),
+}
+
 enum NodeType {
     Add,
     Sub,
@@ -41,52 +50,52 @@ pub struct StructMember {
     // int offset;
 }
 
-struct Node {
-    // using NodePtr = std::unique_ptr<Node>;
-    // using TokenIterator = std::vector<Token>::const_iterator;
-    // TokenIterator token;
-    /* Position in source */
-    token: Token,
-
-    /* Type of node */
-    // NodeType nodeType;
-    node_type: NodeType,
-
-    /* Value if node is a 'Number' node */
-    // int64_t val = -1;
-    val: isize,
-
-    left: Box<Node>,
-    right: Box<Node>,
-    // NodePtr left = nullptr;
-    // NodePtr right = nullptr;
-
-    // variable
-    // Object* var = nullptr; // shared between multiple nodes, TODO: revisit this (maybe use shared_ptr<>)
-    var: Box<Object>,
-
-    // if stmt
-    cond: Box<Node>,
-    then: Box<Node>,
-    els: Box<Node>,
-    // NodePtr cond = nullptr;
-    // NodePtr then = nullptr;
-    // NodePtr els = nullptr; // else
-    init: Box<Node>,
-    inc: Box<Node>,
-    // NodePtr init = nullptr;
-    // NodePtr inc = nullptr;
-    ty: Box<Type>,
-    // Type* type = nullptr;
-    member: StructMember,
-    // StructMember member;
-    block_body: Vec<Box<Node>>,
-    // std::vector<NodePtr> blockBody;
-    func_name: String,
-    // std::string_view funcName;
-    args: Vec<Box<Node>>,
-    // std::vector<NodePtr> args;
-}
+// struct Node {
+//     // using NodePtr = std::unique_ptr<Node>;
+//     // using TokenIterator = std::vector<Token>::const_iterator;
+//     // TokenIterator token;
+//     /* Position in source */
+//     token: Token,
+//
+//     /* Type of node */
+//     // NodeType nodeType;
+//     node_type: NodeType,
+//
+//     /* Value if node is a 'Number' node */
+//     // int64_t val = -1;
+//     val: isize,
+//
+//     left: Box<Node>,
+//     right: Box<Node>,
+//     // NodePtr left = nullptr;
+//     // NodePtr right = nullptr;
+//
+//     // variable
+//     // Object* var = nullptr; // shared between multiple nodes, TODO: revisit this (maybe use shared_ptr<>)
+//     var: Box<Object>,
+//
+//     // if stmt
+//     cond: Box<Node>,
+//     then: Box<Node>,
+//     els: Box<Node>,
+//     // NodePtr cond = nullptr;
+//     // NodePtr then = nullptr;
+//     // NodePtr els = nullptr; // else
+//     init: Box<Node>,
+//     inc: Box<Node>,
+//     // NodePtr init = nullptr;
+//     // NodePtr inc = nullptr;
+//     ty: Box<Type>,
+//     // Type* type = nullptr;
+//     member: StructMember,
+//     // StructMember member;
+//     block_body: Vec<Box<Node>>,
+//     // std::vector<NodePtr> blockBody;
+//     func_name: String,
+//     // std::string_view funcName;
+//     args: Vec<Box<Node>>,
+//     // std::vector<NodePtr> args;
+// }
 
 struct FunctionObject {
     name: String,
@@ -330,6 +339,42 @@ impl Parser<'_> {
 
         eprintln!("Expected function type!");
         Object::Invalid
+    }
+
+    fn compound_stmt(&mut self) -> Node {
+        self.enter_scope();
+        let mut body: Vec<Node> = Vec::new();
+        loop {
+            if self.next_token_equals("}") {
+                break;
+            }
+
+            let is_typename = self
+                .peek()
+                .map(|t| self.is_typename(self.text(&t)))
+                .unwrap_or(false);
+            if (is_typename) {
+                let mut attr = VarAttr::default();
+                self.declspec(&mut attr);
+                if (attr.is_typedef) {
+                    // parse_typedef
+                    continue;
+                }
+                // decl
+            } else {
+                // stmt
+            }
+        }
+
+        let node = Node::Block(Block {
+            token: self.peek().unwrap(),
+            block_body: body,
+        });
+
+        self.leave_scope();
+        self.skip("}");
+
+        node
     }
 
     fn is_typename(&self, token_text: &str) -> bool {

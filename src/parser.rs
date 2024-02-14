@@ -126,7 +126,7 @@ impl Parser<'_> {
         Parser {
             source,
             globals: Vec::new(),
-            scopes: Vec::new(),
+            scopes: vec![Scopes::default()],
             locals: Cell::new(Vec::new()),
             tokens: tokens.iter().peekable().into(),
         }

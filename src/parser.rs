@@ -414,6 +414,42 @@ impl Parser<'_> {
         }
     }
 
+    fn assign(&mut self) {
+        //
+    }
+
+    fn equality(&mut self) {
+        //
+    }
+
+    fn relational(&mut self) {
+        //
+    }
+
+    fn add(&mut self) {
+        //
+    }
+
+    fn mul(&mut self) {
+        //
+    }
+
+    fn cast(&mut self) {
+        //
+    }
+
+    fn unary(&mut self) {
+        //
+    }
+
+    fn postfix(&mut self) {
+        //
+    }
+
+    fn primary(&mut self) {
+        //
+    }
+
     fn is_typename(&self, token_text: &str) -> bool {
         let type_keywords = [
             "char", "int", "struct", "union", "long", "short", "void", "typedef",

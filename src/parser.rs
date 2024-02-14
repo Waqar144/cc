@@ -212,19 +212,19 @@ impl Parser<'_> {
             }
 
             ty = match counter {
-                x if x == CTypes::VOID as usize => void_type(),
-                x if x == CTypes::CHAR as usize => char_type(),
+                x if x == CTypes::VOID as usize => Type::void_type(),
+                x if x == CTypes::CHAR as usize => Type::char_type(),
                 x if x == CTypes::SHORT as usize
                     || x == (CTypes::SHORT as usize) + (CTypes::INT as usize) =>
                 {
-                    int_type()
+                    Type::int_type()
                 }
-                x if x == CTypes::INT as usize => int_type(),
+                x if x == CTypes::INT as usize => Type::int_type(),
                 x if x == CTypes::LONG as usize
                     || x == (CTypes::LONG as usize) + (CTypes::INT as usize)
                     || x == (CTypes::LONG as usize) + (CTypes::LONG as usize) =>
                 {
-                    long_type()
+                    Type::long_type()
                 }
                 _ => {
                     eprintln!("invalid type");
@@ -490,7 +490,7 @@ impl Parser<'_> {
     // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) type-suffix
     fn declarator(&mut self, ty: &mut Type) -> (Type, String) {
         while self.consume("*") {
-            *ty = pointer_to((*ty).clone())
+            *ty = Type::pointer_to((*ty).clone())
         }
 
         if self.next_token_equals("(") {
@@ -528,7 +528,7 @@ impl Parser<'_> {
                 ty,
             });
         }
-        let ty = func_type(return_ty, params);
+        let ty = Type::func_type(return_ty, params);
         self.tokens.get_mut().next();
         ty
     }
@@ -548,7 +548,7 @@ impl Parser<'_> {
             self.skip("]");
 
             let ty = self.type_suffix(ty);
-            array_of(ty, size)
+            Type::array_of(ty, size)
         } else {
             ty
         }

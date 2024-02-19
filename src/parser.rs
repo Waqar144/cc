@@ -15,9 +15,16 @@ struct Variable {
     var: Object,
 }
 
+struct StmtExpr {
+    block_body: Vec<Node>,
+}
+
 enum Node {
     Block(Block),
     Variable(Variable),
+    StmtExpr(StmtExpr),
+    Numeric(usize),
+    Invalid,
 }
 
 enum NodeType {
@@ -85,20 +92,21 @@ impl Object {
     }
 }
 
-struct VarScope<'a> {
-    name: &'a str,
-    var: &'a Object,
-    typedef: Option<Type>,
-}
-
 struct TagScope<'a> {
     name: &'a str,
     ty: Type,
 }
 
 enum Scope {
-    Object { name: String },
-    TypeDef { name: String, typedef: Type },
+    Object {
+        name: String,
+        is_global: bool,
+        idx: usize,
+    },
+    TypeDef {
+        name: String,
+        typedef: Type,
+    },
 }
 
 #[derive(Default)]
@@ -119,6 +127,7 @@ pub struct Parser<'a> {
     scopes: Vec<Scopes<'a>>,
     locals: Cell<Vec<VarObject>>,
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
+    str_literal_counter: usize,
 }
 
 impl Parser<'_> {
@@ -129,6 +138,7 @@ impl Parser<'_> {
             scopes: vec![Scopes::default()],
             locals: Cell::new(Vec::new()),
             tokens: tokens.iter().peekable().into(),
+            str_literal_counter: 1,
         }
     }
 
@@ -246,13 +256,17 @@ impl Parser<'_> {
         self.scopes.pop();
     }
 
-    fn push_var_scope<'a>(&mut self, name: String) {
+    fn push_var_scope<'a>(&mut self, name: String, is_global: bool, index: usize) {
         assert!(!self.scopes.is_empty());
         self.scopes
             .last_mut()
             .unwrap()
             .var_scopes
-            .push(Scope::Object { name });
+            .push(Scope::Object {
+                name,
+                is_global,
+                idx: index,
+            });
     }
 
     fn push_typedef_scope<'a>(&mut self, name: String, ty: Type) {
@@ -264,12 +278,19 @@ impl Parser<'_> {
             .push(Scope::TypeDef { name, typedef: ty });
     }
 
-    fn new_variable(&mut self, name: &str, ty: Type) -> Object {
+    fn new_variable(&mut self, name: &str, ty: Type, is_global: bool) -> Object {
         let obj = Object::VarObject(VarObject {
             name: name.to_string(),
             ty,
         });
-        self.push_var_scope(name.to_string());
+
+        let idx = if is_global {
+            self.globals.len()
+        } else {
+            self.locals.get_mut().len()
+        };
+
+        self.push_var_scope(name.to_string(), is_global, idx);
         obj
     }
 
@@ -277,7 +298,7 @@ impl Parser<'_> {
         let mut locals: Vec<Object> = Vec::new();
         let mut fn_locals = Vec::new();
         for ty in param_types {
-            locals.push(self.new_variable(&ty.name, ty.ty.clone()));
+            locals.push(self.new_variable(&ty.name, ty.ty.clone(), false));
             // Copy into function locals, dont use new_variable because we dont' want to duplicate varscope
             let obj = VarObject {
                 name: ty.name.clone(),
@@ -301,7 +322,7 @@ impl Parser<'_> {
             body: Vec::new(),
         });
 
-        self.push_var_scope(ident.clone());
+        self.push_var_scope(ident.clone(), true, self.globals.len());
 
         // clear
         self.locals.take();
@@ -400,17 +421,16 @@ impl Parser<'_> {
                 eprintln!("unexpected void type"); // TODO proper error reporting
             }
 
-            let var = self.new_variable(&name, ty.clone());
+            let var = self.new_variable(&name, ty.clone(), false);
             let mut locals = self.locals.take();
-            locals.push(var.as_var_object());
+            // duplicate for now
+            locals.push(VarObject { name, ty });
 
-            if !self.next_token_equals("-") {
+            if !self.next_token_equals("=") {
                 continue;
             }
 
-            let lhs = Node::Variable(Variable {
-                var: self.new_variable(&name, ty),
-            });
+            let lhs = Node::Variable(Variable { var });
         }
     }
 
@@ -446,8 +466,150 @@ impl Parser<'_> {
         //
     }
 
-    fn primary(&mut self) {
+    fn primary(&mut self) -> Node {
+        let tokens_copy = self.tokens.get_mut().clone();
+        // GNU Expr Stmt
+        if (self.consume("(") && self.consume("{")) {
+            let body = self.compound_stmt();
+            let node = Node::StmtExpr(StmtExpr {
+                block_body: vec![body],
+            });
+            self.skip(")");
+            return node;
+        }
+        // reset
+        self.tokens.set(tokens_copy);
+
+        if self.consume("(") {
+            // expression
+        }
+
+        if self.consume("sizeof") {
+            let tokens_copy = self.tokens.get_mut().clone();
+            if self.consume("(") && self.next_token_is_typename() {
+                let t = self.typename();
+                return Node::Numeric(t.size());
+            }
+            // reset
+            self.tokens.set(tokens_copy);
+            self.unary();
+            return Node::Invalid;
+        }
+
+        if self.next_token_kind_is(TokenKind::Identifier) {
+            let is_function_call: bool = {
+                let mut tokens_copy = self.tokens.get_mut().clone();
+                tokens_copy.next(); // skip ident
+                let res = tokens_copy
+                    .next()
+                    .map(|t| self.text(&t) == "(")
+                    .unwrap_or(false);
+                res
+            };
+
+            if is_function_call {
+                //
+            }
+
+            let Some(obj) = self.find_var() else {
+                eprintln!("Unknown variable");
+                panic!();
+            };
+            self.tokens.get_mut().next(); // skip var
+            return Node::Variable(Variable {
+                var: Object::VarObject(obj),
+            });
+        }
+
+        if self.next_token_kind_is(TokenKind::StringLiteral) {
+            let tok = self.peek().unwrap();
+            let v = self.str_literal_counter;
+            self.str_literal_counter += 1;
+            let name = format!(".L..{}", v);
+            let ty = Type::array_of(Type::char_type(), tok.len);
+            let var = self.new_variable(&name, ty.clone(), true);
+            self.globals.push(var);
+            // create a copy for now
+            let obj = Object::VarObject(VarObject {
+                name: name.to_string(),
+                ty,
+            });
+            self.tokens.get_mut().next(); // skip str literal
+            return Node::Variable(Variable { var: obj });
+        }
+
+        if self.next_token_kind_is(TokenKind::Numeric) {
+            let tok = self.peek().unwrap();
+            let node = Node::Numeric(tok.val.unwrap());
+            self.tokens.get_mut().next();
+            return node;
+        }
+
+        eprintln!("Invalid stmt");
+        Node::Invalid
+    }
+
+    fn function_call(&mut self) {
         //
+    }
+
+    fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {
+        for scope in self.scopes.iter().rev() {
+            for varscope in scope.var_scopes.iter().rev() {
+                if let Scope::Object { name, .. } = varscope {
+                    if var_name == name {
+                        return Some(varscope);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn abstract_declarator(&mut self, ty: &mut Type) -> Type {
+        while self.consume("*") {
+            *ty = Type::pointer_to((*ty).clone())
+        }
+
+        if self.consume("(") {
+            let mut dummy = Type::void_type();
+            self.abstract_declarator(&mut dummy);
+            self.skip(")");
+            let mut ty = self.type_suffix(ty.clone());
+            self.tokens.get_mut().next();
+            return self.abstract_declarator(&mut ty);
+        }
+
+        self.type_suffix(ty.clone())
+    }
+
+    fn typename(&mut self) -> Type {
+        let mut attr = VarAttr::default();
+        let mut t = self.declspec(&mut attr);
+        self.abstract_declarator(&mut t)
+    }
+
+    fn find_var(&mut self) -> Option<VarObject> {
+        let token = self.peek().unwrap();
+        let text = self.text(&token);
+        if let Some(Scope::Object {
+            name,
+            is_global,
+            idx,
+        }) = self.find_var_scope(text)
+        {
+            if *is_global {
+                if let Object::VarObject(vo) = &self.globals[*idx] {
+                    return Some(vo.clone());
+                }
+            } else {
+                let locals = self.locals.take();
+                let var = locals[*idx].clone();
+                self.locals.set(locals);
+                return Some(var);
+            }
+        }
+        None
     }
 
     fn is_typename(&self, token_text: &str) -> bool {
@@ -573,6 +735,14 @@ impl Parser<'_> {
     fn next_token_text(&mut self) -> &str {
         if let Some(tok) = self.tokens.get_mut().peek() {
             tok.text(&self.source)
+        } else {
+            panic!()
+        }
+    }
+
+    fn next_token_is_typename(&mut self) -> bool {
+        if let Some(tok) = self.peek() {
+            self.is_typename(tok.text(&self.source))
         } else {
             panic!()
         }

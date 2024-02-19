@@ -140,4 +140,20 @@ impl Type {
             base: Box::new(base_ty),
         }
     }
+
+    pub fn size(&self) -> usize {
+        *match self {
+            Type::Void { size, .. } => size,
+            Type::Char { size, .. } => size,
+            Type::Short { size, .. } => size,
+            Type::Int { size, .. } => size,
+            Type::Long { size, .. } => size,
+            Type::Ptr { size, .. } => size,
+            Type::Func(_) => panic!(),
+            Type::Array { size, .. } => size,
+            Type::Struct { size, .. } => size,
+            Type::Union { size, .. } => size,
+            Type::NoType => panic!(),
+        }
+    }
 }

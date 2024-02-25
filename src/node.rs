@@ -51,4 +51,15 @@ impl Node {
             Node::Invalid => panic!(),
         }
     }
+
+    pub fn ty(&self) -> &Type {
+        match self {
+            Node::Block(_) => todo!(),
+            Node::Variable(_) => todo!(),
+            Node::StmtExpr(_) => todo!(),
+            Node::Numeric(n) => &n.ty,
+            Node::Cast(_) => todo!(),
+            Node::Invalid => todo!(),
+        }
+    }
 }

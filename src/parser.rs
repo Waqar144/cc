@@ -452,6 +452,16 @@ impl Parser<'_> {
         Node::Invalid
     }
 
+    fn expr(&mut self) -> Node {
+        Node::Invalid
+    }
+
+    // primary = "(" "{" stmt+ "}" ")"
+    //         | "(" expr ")"
+    //         | "sizeof" unary
+    //         | ident func-args?
+    //         | str
+    //         | num
     fn primary(&mut self) -> Node {
         let tokens_copy = self.tokens.get_mut().clone();
         // GNU Expr Stmt
@@ -467,7 +477,12 @@ impl Parser<'_> {
         self.tokens.set(tokens_copy);
 
         if self.consume("(") {
-            // expression
+            let node = self.expr();
+            if !self.consume(")") {
+                eprintln!("Expected )");
+                panic!();
+            }
+            return node;
         }
 
         if self.consume("sizeof") {
@@ -476,13 +491,17 @@ impl Parser<'_> {
                 let t = self.typename();
                 return Node::Numeric(Numeric {
                     val: t.size(),
-                    ty: t,
+                    ty: Type::NoType,
                 });
             }
             // reset
             self.tokens.set(tokens_copy);
-            self.unary();
-            return Node::Invalid;
+            let mut node = self.unary();
+            node.add_type();
+            return Node::Numeric(Numeric {
+                val: node.ty().size(),
+                ty: Type::NoType,
+            });
         }
 
         if self.next_token_kind_is(TokenKind::Identifier) {
@@ -497,7 +516,7 @@ impl Parser<'_> {
             };
 
             if is_function_call {
-                //
+                return self.function_call();
             }
 
             let Some(obj) = self.find_var() else {
@@ -541,8 +560,8 @@ impl Parser<'_> {
         Node::Invalid
     }
 
-    fn function_call(&mut self) {
-        //
+    fn function_call(&mut self) -> Node {
+        Node::Invalid
     }
 
     fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {

@@ -398,8 +398,8 @@ impl Parser<'_> {
         //
     }
 
-    fn add(&mut self) {
-        //
+    fn add(&mut self) -> Node {
+        Node::Invalid
     }
 
     fn mul(&mut self) {
@@ -460,8 +460,53 @@ impl Parser<'_> {
         self.postfix()
     }
 
-    fn postfix(&mut self) -> Node {
+    fn new_add(&mut self, mut left: Node, mut right: Node) -> Node {
+        left.add_type();
+        right.add_type();
+
+        if left.ty().is_int() && right.ty().is_int() {
+            //
+        }
+
         Node::Invalid
+    }
+
+    fn struct_ref(&mut self, left: Node) -> Node {
+        Node::Invalid
+    }
+
+    // postfix = primary ("[" expr "]")* | "." ident)*
+    fn postfix(&mut self) -> Node {
+        let mut node = self.primary();
+
+        loop {
+            if self.consume("[") {
+                let idx_node = self.expr();
+                node = Node::Dereference(Dereference {
+                    lhs: Box::new(self.new_add(node, idx_node)),
+                    ty: Type::NoType,
+                });
+                continue;
+            }
+
+            if self.consume(".") {
+                node = self.struct_ref(node);
+                continue;
+            }
+
+            if self.consume("->") {
+                // x->y is short for (*x).y
+                node = Node::Dereference(Dereference {
+                    lhs: Box::new(node),
+                    ty: Type::NoType,
+                });
+                node = self.struct_ref(node);
+                continue;
+            }
+
+            break;
+        }
+        node
     }
 
     fn expr(&mut self) -> Node {

@@ -156,4 +156,11 @@ impl Type {
             Type::NoType => panic!(),
         }
     }
+
+    pub fn is_int(&self) -> bool {
+        match self {
+            Type::Int { .. } => true,
+            _ => false,
+        }
+    }
 }

@@ -3,63 +3,9 @@
 
 use std::cell::Cell;
 
+use crate::node::*;
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
-
-struct Block {
-    token: Token,
-    block_body: Vec<Node>,
-}
-
-struct Variable {
-    var: Object,
-}
-
-struct StmtExpr {
-    block_body: Vec<Node>,
-}
-
-struct Cast {
-    lhs: Box<Node>,
-    ty: Type,
-}
-
-enum Node {
-    Block(Block),
-    Variable(Variable),
-    StmtExpr(StmtExpr),
-    Numeric(usize),
-    Cast(Cast),
-    Invalid,
-}
-
-enum NodeType {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Neg,
-    Eq,
-    NotEq,
-    LessThan,
-    LessEq,
-    ExprStmt,
-    StmtExpr, // GNU Statement Expression
-    Assign,
-    Comma,
-    Variable,
-    Return,
-    Block,
-    If,
-    For,
-    While,
-    AddressOf,
-    Dereference,
-    FunctionCall,
-    Number,
-    StructMembr,
-    Cast,
-}
 
 #[derive(Clone, Debug)]
 pub struct StructMember {
@@ -68,7 +14,7 @@ pub struct StructMember {
     offset: usize,
 }
 
-struct FunctionObject {
+pub struct FunctionObject {
     name: String,
     locals: Vec<VarObject>,
     params: Vec<Object>,
@@ -77,12 +23,12 @@ struct FunctionObject {
 }
 
 #[derive(Clone)]
-struct VarObject {
+pub struct VarObject {
     name: String,
     ty: Type,
 }
 
-enum Object {
+pub enum Object {
     FunctionObject(FunctionObject),
     VarObject(VarObject),
     Invalid,

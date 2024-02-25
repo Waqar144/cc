@@ -428,21 +428,33 @@ impl Parser<'_> {
     }
 
     fn unary(&mut self) -> Node {
-        //
         if self.next_token_equals("&") {
-            //
+            self.tokens.get_mut().next();
+            return Node::AddressOf(AddressOf {
+                lhs: Box::new(self.cast()),
+                ty: Type::NoType,
+            });
         }
 
         if self.next_token_equals("*") {
-            //
+            self.tokens.get_mut().next();
+            return Node::Dereference(Dereference {
+                lhs: Box::new(self.cast()),
+                ty: Type::NoType,
+            });
         }
 
         if self.next_token_equals("-") {
-            //
+            self.tokens.get_mut().next();
+            return Node::Neg(Neg {
+                lhs: Box::new(self.cast()),
+                ty: Type::NoType,
+            });
         }
 
         if self.next_token_equals("+") {
-            //
+            self.tokens.get_mut().next();
+            return self.cast();
         }
 
         self.postfix()

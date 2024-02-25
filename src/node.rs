@@ -25,12 +25,30 @@ pub struct Numeric {
     pub ty: Type,
 }
 
+pub struct AddressOf {
+    pub lhs: Box<Node>,
+    pub ty: Type,
+}
+
+pub struct Dereference {
+    pub lhs: Box<Node>,
+    pub ty: Type,
+}
+
+pub struct Neg {
+    pub lhs: Box<Node>,
+    pub ty: Type,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
     StmtExpr(StmtExpr),
     Numeric(Numeric),
     Cast(Cast),
+    AddressOf(AddressOf),
+    Dereference(Dereference),
+    Neg(Neg),
     Invalid,
 }
 
@@ -49,6 +67,9 @@ impl Node {
             }
             Node::Cast(_) => (),
             Node::Invalid => panic!(),
+            Node::AddressOf(_) => todo!(),
+            Node::Dereference(_) => todo!(),
+            Node::Neg(_) => todo!(),
         }
     }
 
@@ -60,6 +81,9 @@ impl Node {
             Node::Numeric(n) => &n.ty,
             Node::Cast(_) => todo!(),
             Node::Invalid => todo!(),
+            Node::AddressOf(_) => todo!(),
+            Node::Dereference(_) => todo!(),
+            Node::Neg(_) => todo!(),
         }
     }
 }

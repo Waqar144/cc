@@ -414,8 +414,8 @@ impl Parser<'_> {
             self.consume(")");
             self.skip(")");
 
-            let lhs = self.cast();
-            // lhs.add_type();
+            let mut lhs = self.cast();
+            lhs.add_type();
             let node = Cast {
                 lhs: Box::new(lhs),
                 ty: t,
@@ -474,7 +474,10 @@ impl Parser<'_> {
             let tokens_copy = self.tokens.get_mut().clone();
             if self.consume("(") && self.next_token_is_typename() {
                 let t = self.typename();
-                return Node::Numeric(t.size());
+                return Node::Numeric(Numeric {
+                    val: t.size(),
+                    ty: t,
+                });
             }
             // reset
             self.tokens.set(tokens_copy);
@@ -526,7 +529,10 @@ impl Parser<'_> {
 
         if self.next_token_kind_is(TokenKind::Numeric) {
             let tok = self.peek().unwrap();
-            let node = Node::Numeric(tok.val.unwrap());
+            let node = Node::Numeric(Numeric {
+                val: tok.val.unwrap(),
+                ty: Type::NoType,
+            });
             self.tokens.get_mut().next();
             return node;
         }

@@ -20,11 +20,35 @@ pub struct Cast {
     pub ty: Type,
 }
 
+pub struct Numeric {
+    pub val: usize,
+    pub ty: Type,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
     StmtExpr(StmtExpr),
-    Numeric(usize),
+    Numeric(Numeric),
     Cast(Cast),
     Invalid,
+}
+
+impl Node {
+    pub fn add_type(&mut self) {
+        match self {
+            Node::Block(_) => (),
+            Node::Variable(_) => (), // TODO,
+            Node::StmtExpr(_) => (),
+            Node::Numeric(n) => {
+                if i32::try_from(n.val).is_ok() {
+                    n.ty = Type::int_type();
+                } else {
+                    n.ty = Type::long_type();
+                }
+            }
+            Node::Cast(_) => (),
+            Node::Invalid => panic!(),
+        }
+    }
 }

@@ -19,11 +19,17 @@ struct StmtExpr {
     block_body: Vec<Node>,
 }
 
+struct Cast {
+    lhs: Box<Node>,
+    ty: Type,
+}
+
 enum Node {
     Block(Block),
     Variable(Variable),
     StmtExpr(StmtExpr),
     Numeric(usize),
+    Cast(Cast),
     Invalid,
 }
 
@@ -454,16 +460,50 @@ impl Parser<'_> {
         //
     }
 
-    fn cast(&mut self) {
-        //
+    // cast = "(" type-name ")" cast | unary
+    fn cast(&mut self) -> Node {
+        let toks = self.tokens.get_mut().clone();
+        if self.consume("(") && self.next_token_is_typename() {
+            let t = self.typename();
+            self.consume(")");
+            self.skip(")");
+
+            let lhs = self.cast();
+            // lhs.add_type();
+            let node = Cast {
+                lhs: Box::new(lhs),
+                ty: t,
+            };
+            return Node::Cast(node);
+        } else {
+            self.tokens.set(toks);
+        }
+        self.unary()
     }
 
-    fn unary(&mut self) {
+    fn unary(&mut self) -> Node {
         //
+        if self.next_token_equals("&") {
+            //
+        }
+
+        if self.next_token_equals("*") {
+            //
+        }
+
+        if self.next_token_equals("-") {
+            //
+        }
+
+        if self.next_token_equals("+") {
+            //
+        }
+
+        self.postfix()
     }
 
-    fn postfix(&mut self) {
-        //
+    fn postfix(&mut self) -> Node {
+        Node::Invalid
     }
 
     fn primary(&mut self) -> Node {

@@ -59,6 +59,8 @@ pub enum Node {
     Mul(BinaryNode),
     Sub(BinaryNode),
     Div(BinaryNode),
+    LessThan(BinaryNode),
+    LessThanEq(BinaryNode),
     Invalid,
 }
 
@@ -84,6 +86,8 @@ impl Node {
             Node::Mul(_) => todo!(),
             Node::Sub(_) => todo!(),
             Node::Div(_) => todo!(),
+            Node::LessThan(_) => todo!(),
+            Node::LessThanEq(_) => todo!(),
         }
     }
 
@@ -102,6 +106,8 @@ impl Node {
             Node::Mul(_) => todo!(),
             Node::Sub(_) => todo!(),
             Node::Div(_) => todo!(),
+            Node::LessThan(_) => todo!(),
+            Node::LessThanEq(_) => todo!(),
         }
     }
 }

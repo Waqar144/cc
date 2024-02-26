@@ -394,8 +394,51 @@ impl Parser<'_> {
         //
     }
 
-    fn relational(&mut self) {
-        //
+    fn relational(&mut self) -> Node {
+        let mut node = self.add();
+        loop {
+            if self.next_token_equals("<") {
+                self.skip("<");
+                node = Node::LessThan(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.add()),
+                });
+                continue;
+            }
+
+            if self.next_token_equals("<=") {
+                self.skip("<=");
+                node = Node::LessThanEq(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.add()),
+                });
+                continue;
+            }
+
+            if self.next_token_equals(">") {
+                self.skip(">");
+                node = Node::LessThan(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(self.add()),
+                    rhs: Box::new(node),
+                });
+                continue;
+            }
+
+            if self.next_token_equals(">=") {
+                self.skip(">=");
+                node = Node::LessThanEq(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(self.add()),
+                    rhs: Box::new(node),
+                });
+                continue;
+            }
+            break;
+        }
+        node
     }
 
     fn add(&mut self) -> Node {
@@ -412,6 +455,7 @@ impl Parser<'_> {
                 self.skip("-");
                 let right = self.mul();
                 node = self.new_sub(node, right);
+                continue;
             }
 
             break;
@@ -439,6 +483,7 @@ impl Parser<'_> {
                     lhs: Box::new(node),
                     rhs: Box::new(self.cast()),
                 });
+                continue;
             }
 
             break;

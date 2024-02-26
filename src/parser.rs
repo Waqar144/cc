@@ -390,8 +390,31 @@ impl Parser<'_> {
         //
     }
 
-    fn equality(&mut self) {
-        //
+    fn equality(&mut self) -> Node {
+        let mut node = self.relational();
+        loop {
+            if self.next_token_equals("==") {
+                self.skip("==");
+                node = Node::Eq(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.relational()),
+                });
+                continue;
+            }
+
+            if self.next_token_equals("!=") {
+                self.skip("!=");
+                node = Node::NotEq(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.relational()),
+                });
+                continue;
+            }
+            break;
+        }
+        node
     }
 
     fn relational(&mut self) -> Node {

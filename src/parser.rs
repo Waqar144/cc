@@ -438,8 +438,25 @@ impl Parser<'_> {
         self.expr_stmt()
     }
 
+    // expr_stmt = expr? ";"
     fn expr_stmt(&mut self) -> Node {
-        Node::Invalid
+        if self.next_token_equals(";") {
+            let tok = self.peek().clone().unwrap();
+            self.skip(";");
+            return Node::Block(Block {
+                token: tok,
+                block_body: Vec::new(),
+            });
+        }
+
+        let node = Node::ExprStmt(ExprStmt {
+            lhs: Box::new(self.expr()),
+        });
+        if !self.consume(";") {
+            eprintln!("Expected ;");
+            panic!();
+        }
+        node
     }
 
     // declaration = typespec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"

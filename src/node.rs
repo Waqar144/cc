@@ -46,6 +46,10 @@ pub struct BinaryNode {
     pub rhs: Box<Node>,
 }
 
+pub struct ExprStmt {
+    pub lhs: Box<Node>,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
@@ -64,6 +68,7 @@ pub enum Node {
     Eq(BinaryNode),
     NotEq(BinaryNode),
     Assign(BinaryNode),
+    ExprStmt(ExprStmt),
     Invalid,
 }
 
@@ -94,6 +99,7 @@ impl Node {
             Node::Eq(_) => todo!(),
             Node::NotEq(_) => todo!(),
             Node::Assign(_) => todo!(),
+            Node::ExprStmt(_) => todo!(),
         }
     }
 
@@ -117,6 +123,7 @@ impl Node {
             Node::Eq(_) => todo!(),
             Node::NotEq(_) => todo!(),
             Node::Assign(_) => todo!(),
+            Node::ExprStmt(_) => todo!(),
         }
     }
 }

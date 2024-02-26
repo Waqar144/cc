@@ -360,8 +360,10 @@ impl Parser<'_> {
         }
     }
 
-    fn declaration(&mut self, base_ty: Type) {
+    // declaration = typespec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+    fn declaration(&mut self, base_ty: Type) -> Node {
         let mut first = true;
+        let mut nodes = Vec::new();
         while (!self.next_token_equals(";")) {
             if !first {
                 self.skip(",");
@@ -381,9 +383,26 @@ impl Parser<'_> {
             if !self.next_token_equals("=") {
                 continue;
             }
+            self.skip("=");
 
             let lhs = Node::Variable(Variable { var });
+            let rhs = self.assign();
+            let node = Node::Assign(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            });
+            let cur = Node::ExprStmt(ExprStmt { lhs: node.into() });
+            nodes.push(cur);
         }
+
+        let token = self.peek().clone().unwrap();
+        let block_node = Node::Block(Block {
+            token,
+            block_body: nodes,
+        });
+        self.tokens.get_mut().next();
+        block_node
     }
 
     fn assign(&mut self) -> Node {

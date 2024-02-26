@@ -118,7 +118,7 @@ pub fn tokenize(source: &str) -> Vec<Token> {
 
         // multi line comment
         if span.starts_with("/*") {
-            let count = span.find("*/").unwrap();
+            let count = span.find("*/").unwrap() + 2;
             span = &span[count..];
             offset += count;
             continue;

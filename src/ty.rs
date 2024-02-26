@@ -158,17 +158,11 @@ impl Type {
     }
 
     pub fn is_int(&self) -> bool {
-        match self {
-            Type::Int { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Int { .. })
     }
 
     pub fn is_ptr(&self) -> bool {
-        match self {
-            Type::Ptr { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Ptr { .. })
     }
 
     pub fn base_ty(&self) -> Option<&Box<Type>> {
@@ -185,5 +179,13 @@ impl Type {
             Type::Array { base, .. } => Some(base),
             Type::NoType => None,
         }
+    }
+
+    /// Returns `true` if the type is [`Array`].
+    ///
+    /// [`Array`]: Type::Array
+    #[must_use]
+    pub fn is_array(&self) -> bool {
+        matches!(self, Self::Array { .. })
     }
 }

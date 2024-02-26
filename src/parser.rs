@@ -321,7 +321,8 @@ impl Parser<'_> {
                 .peek()
                 .map(|t| self.is_typename(self.text(&t)))
                 .unwrap_or(false);
-            if (is_typename) {
+
+            let mut node = if (is_typename) {
                 let mut attr = VarAttr::default();
                 let base_ty = self.declspec(&mut attr);
                 if (attr.is_typedef) {
@@ -329,11 +330,14 @@ impl Parser<'_> {
                     self.parse_typedef(base_ty);
                     continue;
                 }
-                self.declaration(base_ty);
+                self.declaration(base_ty)
             } else {
                 // stmt
-                self.stmt();
-            }
+                self.stmt()
+            };
+
+            node.add_type();
+            body.push(node);
         }
 
         let node = Node::Block(Block {

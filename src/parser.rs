@@ -386,8 +386,16 @@ impl Parser<'_> {
         }
     }
 
-    fn assign(&mut self) {
-        //
+    fn assign(&mut self) -> Node {
+        let mut node = self.equality();
+        if self.next_token_equals("=") {
+            node = Node::Assign(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(node),
+                rhs: Box::new(self.assign()),
+            });
+        }
+        node
     }
 
     fn equality(&mut self) -> Node {

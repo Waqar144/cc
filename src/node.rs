@@ -63,6 +63,7 @@ pub enum Node {
     LessThanEq(BinaryNode),
     Eq(BinaryNode),
     NotEq(BinaryNode),
+    Assign(BinaryNode),
     Invalid,
 }
 
@@ -92,6 +93,7 @@ impl Node {
             Node::LessThanEq(_) => todo!(),
             Node::Eq(_) => todo!(),
             Node::NotEq(_) => todo!(),
+            Node::Assign(_) => todo!(),
         }
     }
 
@@ -114,6 +116,7 @@ impl Node {
             Node::LessThanEq(_) => todo!(),
             Node::Eq(_) => todo!(),
             Node::NotEq(_) => todo!(),
+            Node::Assign(_) => todo!(),
         }
     }
 }

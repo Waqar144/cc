@@ -362,6 +362,83 @@ impl Parser<'_> {
     }
 
     fn stmt(&mut self) -> Node {
+        if self.next_token_equals("while") {
+            self.skip("while");
+            self.skip("(");
+            let cond = self.expr();
+            self.skip(")");
+            let then = self.stmt();
+            return Node::While(While {
+                cond: Box::new(cond),
+                then: Box::new(then),
+            });
+        }
+
+        if self.next_token_equals("for") {
+            self.skip("for");
+            self.skip("(");
+            let init = self.expr_stmt();
+
+            let mut cond: Option<Box<Node>> = None;
+            if !self.next_token_equals(";") {
+                cond = Some(Box::new(self.expr()));
+            }
+            self.skip(";");
+
+            let mut inc: Option<Box<Node>> = None;
+            if !self.next_token_equals(")") {
+                inc = Some(Box::new(self.expr()));
+            }
+            self.skip(")");
+            let then = self.stmt();
+            return Node::For(For {
+                init: init.into(),
+                cond,
+                inc,
+                then: then.into(),
+            });
+        }
+
+        if self.next_token_equals("if") {
+            self.skip("if");
+            self.skip("(");
+            let cond = self.expr();
+            self.skip(")");
+            let then = self.stmt();
+
+            let mut els: Option<Box<Node>> = None;
+            if self.next_token_equals("else") {
+                self.skip("else");
+                els = Some(Box::new(self.stmt()));
+            }
+            return Node::If(If {
+                cond: cond.into(),
+                then: then.into(),
+                els,
+            });
+        }
+
+        if self.next_token_equals("return") {
+            self.skip("return");
+            let node = Node::Cast(Cast {
+                lhs: Box::new(self.expr()),
+                ty: Type::NoType, // TODO current_fn return type
+            });
+            self.skip(";");
+            return Node::Return(Return {
+                lhs: Box::new(node),
+            });
+        }
+
+        if self.next_token_equals("{") {
+            self.skip("{");
+            return self.compound_stmt();
+        }
+
+        self.expr_stmt()
+    }
+
+    fn expr_stmt(&mut self) -> Node {
         Node::Invalid
     }
 

@@ -50,6 +50,28 @@ pub struct ExprStmt {
     pub lhs: Box<Node>,
 }
 
+pub struct While {
+    pub cond: Box<Node>,
+    pub then: Box<Node>,
+}
+
+pub struct For {
+    pub init: Box<Node>,
+    pub cond: Option<Box<Node>>,
+    pub inc: Option<Box<Node>>,
+    pub then: Box<Node>,
+}
+
+pub struct If {
+    pub cond: Box<Node>,
+    pub then: Box<Node>,
+    pub els: Option<Box<Node>>,
+}
+
+pub struct Return {
+    pub lhs: Box<Node>,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
@@ -70,6 +92,10 @@ pub enum Node {
     Assign(BinaryNode),
     ExprStmt(ExprStmt),
     Comma(BinaryNode),
+    While(While),
+    For(For),
+    If(If),
+    Return(Return),
     Invalid,
 }
 
@@ -102,6 +128,10 @@ impl Node {
             Node::Assign(_) => todo!(),
             Node::ExprStmt(_) => todo!(),
             Node::Comma(_) => todo!(),
+            Node::While(_) => todo!(),
+            Node::For(_) => todo!(),
+            Node::If(_) => todo!(),
+            Node::Return(_) => todo!(),
         }
     }
 
@@ -127,6 +157,10 @@ impl Node {
             Node::Assign(_) => todo!(),
             Node::ExprStmt(_) => todo!(),
             Node::Comma(_) => todo!(),
+            Node::While(_) => todo!(),
+            Node::For(_) => todo!(),
+            Node::If(_) => todo!(),
+            Node::Return(_) => todo!(),
         }
     }
 }

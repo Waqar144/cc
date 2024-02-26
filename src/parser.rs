@@ -399,11 +399,51 @@ impl Parser<'_> {
     }
 
     fn add(&mut self) -> Node {
-        Node::Invalid
+        let mut node = self.mul();
+        loop {
+            if self.next_token_equals("+") {
+                self.skip("+");
+                let right = self.mul();
+                node = self.new_add(node, right);
+                continue;
+            }
+
+            if self.next_token_equals("-") {
+                self.skip("-");
+                let right = self.mul();
+                node = self.new_sub(node, right);
+            }
+
+            break;
+        }
+        node
     }
 
-    fn mul(&mut self) {
-        //
+    fn mul(&mut self) -> Node {
+        let mut node = self.cast();
+        loop {
+            if self.next_token_equals("*") {
+                self.skip("*");
+                node = Node::Mul(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.cast()),
+                });
+                continue;
+            }
+
+            if self.next_token_equals("/") {
+                self.skip("/");
+                node = Node::Div(BinaryNode {
+                    ty: Type::NoType,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.cast()),
+                });
+            }
+
+            break;
+        }
+        node
     }
 
     // cast = "(" type-name ")" cast | unary

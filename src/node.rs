@@ -40,6 +40,12 @@ pub struct Neg {
     pub ty: Type,
 }
 
+pub struct BinaryNode {
+    pub ty: Type,
+    pub lhs: Box<Node>,
+    pub rhs: Box<Node>,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
@@ -49,6 +55,10 @@ pub enum Node {
     AddressOf(AddressOf),
     Dereference(Dereference),
     Neg(Neg),
+    Add(BinaryNode),
+    Mul(BinaryNode),
+    Sub(BinaryNode),
+    Div(BinaryNode),
     Invalid,
 }
 
@@ -70,6 +80,10 @@ impl Node {
             Node::AddressOf(_) => todo!(),
             Node::Dereference(_) => todo!(),
             Node::Neg(_) => todo!(),
+            Node::Add(_) => todo!(),
+            Node::Mul(_) => todo!(),
+            Node::Sub(_) => todo!(),
+            Node::Div(_) => todo!(),
         }
     }
 
@@ -84,6 +98,10 @@ impl Node {
             Node::AddressOf(_) => todo!(),
             Node::Dereference(_) => todo!(),
             Node::Neg(_) => todo!(),
+            Node::Add(_) => todo!(),
+            Node::Mul(_) => todo!(),
+            Node::Sub(_) => todo!(),
+            Node::Div(_) => todo!(),
         }
     }
 }

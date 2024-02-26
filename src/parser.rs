@@ -465,10 +465,89 @@ impl Parser<'_> {
         right.add_type();
 
         if left.ty().is_int() && right.ty().is_int() {
-            //
+            return Node::Add(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+            });
         }
 
-        Node::Invalid
+        if left.ty().is_ptr() && right.ty().is_ptr() {
+            eprintln!("new_add: Invalid operands");
+            panic!();
+        }
+
+        if !left.ty().is_ptr() && right.ty().is_ptr() {
+            std::mem::swap(&mut left, &mut right);
+        }
+
+        right = Node::Mul(BinaryNode {
+            ty: Type::NoType,
+            lhs: Box::new(right),
+            rhs: Box::new(Node::Numeric(Numeric {
+                // unwrap should be safe here, we made sure above that left is a ptr
+                val: left.ty().base_ty().unwrap().size(),
+                ty: Type::long_type(),
+            })),
+        });
+
+        Node::Add(BinaryNode {
+            ty: Type::NoType,
+            lhs: Box::new(left),
+            rhs: Box::new(right),
+        })
+    }
+
+    fn new_sub(&mut self, mut left: Node, mut right: Node) -> Node {
+        left.add_type();
+        right.add_type();
+
+        if left.ty().is_int() && right.ty().is_int() {
+            return Node::Sub(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+            });
+        }
+
+        if left.ty().is_ptr() && right.ty().is_int() {
+            right = Node::Mul(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(right),
+                rhs: Box::new(Node::Numeric(Numeric {
+                    // unwrap should be safe here, we made sure above that left is a ptr
+                    val: left.ty().base_ty().unwrap().size(),
+                    ty: Type::long_type(),
+                })),
+            });
+            right.add_type();
+            return Node::Sub(BinaryNode {
+                ty: left.ty().clone(),
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+            });
+        }
+
+        if left.ty().is_ptr() && right.ty().is_ptr() {
+            let size = left.ty().base_ty().unwrap().size();
+            let node = Node::Sub(BinaryNode {
+                ty: Type::int_type(),
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+            });
+            return Node::Div(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(node),
+                rhs: Node::Numeric(Numeric {
+                    val: size,
+                    ty: Type::long_type(),
+                })
+                .into(),
+            });
+        }
+
+        eprintln!("new_sub: Invalid operands");
+        panic!();
     }
 
     fn struct_ref(&mut self, left: Node) -> Node {

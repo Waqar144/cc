@@ -163,4 +163,27 @@ impl Type {
             _ => false,
         }
     }
+
+    pub fn is_ptr(&self) -> bool {
+        match self {
+            Type::Ptr { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn base_ty(&self) -> Option<&Box<Type>> {
+        match self {
+            Type::Void { .. } => None,
+            Type::Char { .. } => None,
+            Type::Short { .. } => None,
+            Type::Int { .. } => None,
+            Type::Long { .. } => None,
+            Type::Struct { .. } => None,
+            Type::Union { .. } => None,
+            Type::Func(_) => None,
+            Type::Ptr { base, .. } => Some(base),
+            Type::Array { base, .. } => Some(base),
+            Type::NoType => None,
+        }
+    }
 }

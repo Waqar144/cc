@@ -332,6 +332,7 @@ impl Parser<'_> {
                 self.declaration(base_ty);
             } else {
                 // stmt
+                self.stmt();
             }
         }
 
@@ -358,6 +359,10 @@ impl Parser<'_> {
             let (ty, name) = self.declarator(&mut base_ty);
             self.push_typedef_scope(name, ty);
         }
+    }
+
+    fn stmt(&mut self) -> Node {
+        Node::Invalid
     }
 
     // declaration = typespec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
@@ -724,7 +729,15 @@ impl Parser<'_> {
     }
 
     fn expr(&mut self) -> Node {
-        Node::Invalid
+        let mut node = self.assign();
+        if self.consume(",") {
+            node = Node::Comma(BinaryNode {
+                ty: Type::NoType,
+                lhs: Box::new(node),
+                rhs: Box::new(self.expr()),
+            });
+        }
+        node
     }
 
     // primary = "(" "{" stmt+ "}" ")"

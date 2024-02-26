@@ -69,6 +69,7 @@ pub enum Node {
     NotEq(BinaryNode),
     Assign(BinaryNode),
     ExprStmt(ExprStmt),
+    Comma(BinaryNode),
     Invalid,
 }
 
@@ -100,6 +101,7 @@ impl Node {
             Node::NotEq(_) => todo!(),
             Node::Assign(_) => todo!(),
             Node::ExprStmt(_) => todo!(),
+            Node::Comma(_) => todo!(),
         }
     }
 
@@ -124,6 +126,7 @@ impl Node {
             Node::NotEq(_) => todo!(),
             Node::Assign(_) => todo!(),
             Node::ExprStmt(_) => todo!(),
+            Node::Comma(_) => todo!(),
         }
     }
 }

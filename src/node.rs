@@ -13,6 +13,7 @@ pub struct Variable {
 
 pub struct StmtExpr {
     pub block_body: Vec<Node>,
+    pub ty: Type,
 }
 
 pub struct Cast {
@@ -143,7 +144,13 @@ impl Node {
                 }
             }
             Node::Variable(_) => (),
-            Node::StmtExpr(_) => (),
+            Node::StmtExpr(se) => {
+                if !se.block_body.is_empty() {
+                    if let Node::ExprStmt(e) = se.block_body.last().unwrap() {
+                        se.ty = e.lhs.ty().clone();
+                    }
+                }
+            }
             Node::Numeric(n) => {
                 if i32::try_from(n.val).is_ok() {
                     n.ty = Type::int_type();
@@ -223,7 +230,7 @@ impl Node {
         match self {
             Node::Block(_) => &Type::NoType,
             Node::Variable(v) => v.var.ty(),
-            Node::StmtExpr(_) => todo!(),
+            Node::StmtExpr(se) => &se.ty,
             Node::Numeric(n) => &n.ty,
             Node::Cast(_) => todo!(),
             Node::Invalid => panic!(),

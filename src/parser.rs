@@ -1055,6 +1055,7 @@ impl Parser<'_> {
             let body = self.compound_stmt();
             let node = Node::StmtExpr(StmtExpr {
                 block_body: vec![body],
+                ty: Type::NoType,
             });
             self.skip(")");
             return node;

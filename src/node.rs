@@ -107,6 +107,22 @@ pub enum Node {
 }
 
 impl Node {
+    pub fn binary_node(&self) -> Option<&BinaryNode> {
+        match self {
+            Node::Add(b)
+            | Node::Mul(b)
+            | Node::Sub(b)
+            | Node::Div(b)
+            | Node::LessThan(b)
+            | Node::LessThanEq(b)
+            | Node::Eq(b)
+            | Node::NotEq(b)
+            | Node::Assign(b)
+            | Node::Comma(b) => Some(b),
+            _ => None,
+        }
+    }
+
     fn common_type(t1: &Type, t2: &Type) -> Type {
         if let Some(base) = t1.base_ty() {
             return Type::pointer_to(*base.clone());

@@ -136,7 +136,7 @@ impl Node {
                     n.add_type();
                 }
             }
-            Node::Variable(_) => (), // TODO,
+            Node::Variable(_) => (),
             Node::StmtExpr(_) => (),
             Node::Numeric(n) => {
                 if i32::try_from(n.val).is_ok() {
@@ -215,7 +215,7 @@ impl Node {
     pub fn ty(&self) -> &Type {
         match self {
             Node::Block(_) => todo!(),
-            Node::Variable(_) => todo!(),
+            Node::Variable(v) => v.var.ty(),
             Node::StmtExpr(_) => todo!(),
             Node::Numeric(n) => &n.ty,
             Node::Cast(_) => todo!(),

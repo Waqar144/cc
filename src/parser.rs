@@ -20,6 +20,7 @@ pub struct FunctionObject {
     params: Vec<Object>,
     is_func_def: bool,
     body: Vec<Node>,
+    ty: Type,
 }
 
 #[derive(Clone)]
@@ -37,6 +38,22 @@ pub enum Object {
 impl Object {
     fn as_var_object(self) -> VarObject {
         if let Self::VarObject(v) = self {
+            v
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn ty(&self) -> &Type {
+        match self {
+            Object::FunctionObject(f) => &f.ty,
+            Object::VarObject(v) => &v.ty,
+            Object::Invalid => panic!(),
+        }
+    }
+
+    pub fn as_function_object(self) -> FunctionObject {
+        if let Self::FunctionObject(v) = self {
             v
         } else {
             panic!()
@@ -272,9 +289,10 @@ impl Parser<'_> {
             params: Vec::new(),
             is_func_def: false,
             body: Vec::new(),
+            ty: ty.clone(),
         });
 
-        self.push_var_scope(ident.clone(), true, self.globals.len());
+        self.push_var_scope(ident, true, self.globals.len());
 
         // clear
         self.locals.take();
@@ -296,13 +314,12 @@ impl Parser<'_> {
             let body = self.compound_stmt();
 
             self.leave_scope();
-            return Object::FunctionObject(FunctionObject {
-                name: ident.to_string(),
-                locals: self.locals.take(),
-                params,
-                is_func_def: false,
-                body: vec![body],
-            });
+            let mut f = function.as_function_object();
+            f.params = params;
+            f.is_func_def = true;
+            f.body = vec![body];
+            f.locals = self.locals.take();
+            return Object::FunctionObject(f);
         }
 
         eprintln!("Expected function type!");

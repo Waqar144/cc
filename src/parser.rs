@@ -54,8 +54,8 @@ impl Object {
     }
 }
 
-struct TagScope<'a> {
-    name: &'a str,
+struct TagScope {
+    name: String,
     ty: Type,
 }
 
@@ -78,15 +78,15 @@ struct VarAttr {
 
 // Block level scope
 #[derive(Default)]
-struct Scopes<'a> {
+struct Scopes {
     var_scopes: Vec<Scope>,
-    tag_scopes: Vec<TagScope<'a>>,
+    tag_scopes: Vec<TagScope>,
 }
 
 pub struct Parser<'a> {
     source: &'a str,
     globals: Vec<Object>,
-    scopes: Vec<Scopes<'a>>,
+    scopes: Vec<Scopes>,
     locals: Cell<Vec<VarObject>>,
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
     current_fn_return_ty: Type,
@@ -147,6 +147,143 @@ impl Parser<'_> {
         self.tokens.get_mut().next();
     }
 
+    fn find_tag_scope(&self, tag: &str) -> Option<&TagScope> {
+        for scope in self.scopes.iter().rev() {
+            for tagscope in scope.tag_scopes.iter().rev() {
+                if tagscope.name == tag {
+                    return Some(tagscope);
+                }
+            }
+        }
+        None
+    }
+
+    fn parse_struct_members(&mut self) -> Vec<StructMember> {
+        let mut members = Vec::new();
+        while !self.next_token_equals("}") {
+            let mut attr = VarAttr::default();
+            let mut mem_base_ty = self.declspec(&mut attr);
+            let mut first = true;
+            // find semicolon
+            while !self.consume(";") {
+                if !first {
+                    self.skip(",");
+                }
+                first = false;
+
+                let (mem_ty, ident) = self.declarator(&mut mem_base_ty);
+                members.push(StructMember {
+                    name: ident,
+                    ty: mem_ty,
+                    offset: 0,
+                });
+            }
+        }
+        self.skip("}");
+        members
+    }
+
+    fn struct_or_union_decl(&mut self, is_union: bool) -> Type {
+        // is there a tag
+        let mut tag_name = String::new();
+        if self.next_token_kind_is(TokenKind::Identifier) {
+            tag_name = self.next_token_text().into();
+            self.tokens.get_mut().next();
+        }
+
+        // struct ref
+        if !tag_name.is_empty() && !self.next_token_equals("{") {
+            let tagscope = self.find_tag_scope(&tag_name);
+            if let Some(ts) = tagscope {
+                return ts.ty.clone();
+            }
+            eprintln!("Unknown struct {tag_name}");
+            panic!();
+        }
+
+        self.skip("{");
+
+        let members = self.parse_struct_members();
+        let st = if is_union {
+            Type::Union {
+                size: 0,
+                alignment: 1,
+                members,
+            }
+        } else {
+            Type::Struct {
+                size: 0,
+                alignment: 1,
+                members,
+            }
+        };
+
+        if !tag_name.is_empty() {
+            self.push_tag_scope(&tag_name, st.clone());
+        }
+
+        st
+    }
+
+    fn align_to(n: usize, align: usize) -> usize {
+        return ((n + align - 1) / align) * align;
+    }
+
+    fn struct_decl(&mut self) -> Type {
+        let mut st = self.struct_or_union_decl(false);
+        let mut offset = 0;
+
+        if let Type::Struct {
+            size,
+            alignment,
+            members,
+        } = &mut st
+        {
+            for m in members.iter_mut() {
+                offset = Self::align_to(offset, m.ty.alignment());
+                m.offset = offset;
+                offset += m.ty.size();
+
+                if *alignment < m.ty.alignment() {
+                    *alignment = m.ty.alignment();
+                }
+            }
+            *size = Self::align_to(offset, *alignment);
+        } else {
+            eprintln!("Expected struct decl");
+            panic!()
+        }
+        st
+    }
+
+    fn union_decl(&mut self) -> Type {
+        let mut st = self.struct_or_union_decl(true);
+        let mut offset = 0;
+
+        if let Type::Union {
+            size,
+            alignment,
+            members,
+        } = &mut st
+        {
+            // The union is as big as necessary to hold its largest member
+            for m in members.iter_mut() {
+                m.offset = 0;
+                if *alignment < m.ty.alignment() {
+                    *alignment = m.ty.alignment();
+                }
+                if *size < m.ty.size() {
+                    *size = m.ty.size();
+                }
+            }
+            *size = Self::align_to(*size, *alignment);
+        } else {
+            eprintln!("Expected union decl");
+            panic!()
+        }
+        st
+    }
+
     fn declspec(&mut self, var_attr: &mut VarAttr) -> Type {
         enum CTypes {
             VOID = 1 << 0,
@@ -164,10 +301,7 @@ impl Parser<'_> {
                 break;
             }
 
-            if self.next_token_equals("struct") || self.next_token_equals("union") {
-                //
-                counter += CTypes::OTHER as usize;
-            }
+            // TODO let ty2 = self.find_typedef();
 
             counter += match self.next_token_text() {
                 "void" => CTypes::VOID as usize,
@@ -175,6 +309,16 @@ impl Parser<'_> {
                 "short" => CTypes::SHORT as usize,
                 "int" => CTypes::INT as usize,
                 "long" => CTypes::LONG as usize,
+                "struct" => {
+                    ty = self.struct_decl();
+                    counter += CTypes::OTHER as usize;
+                    continue;
+                }
+                "union" => {
+                    ty = self.union_decl();
+                    counter += CTypes::OTHER as usize;
+                    continue;
+                }
                 _ => {
                     eprintln!("unexpected type {}", self.next_token_text());
                     panic!();
@@ -236,6 +380,14 @@ impl Parser<'_> {
             .unwrap()
             .var_scopes
             .push(Scope::TypeDef { name, typedef: ty });
+    }
+
+    fn push_tag_scope(&mut self, name: &str, ty: Type) {
+        assert!(!self.scopes.is_empty());
+        self.scopes.last_mut().unwrap().tag_scopes.push(TagScope {
+            name: name.to_string(),
+            ty,
+        });
     }
 
     fn new_variable(&mut self, name: &str, ty: Type, is_global: bool) -> Object {

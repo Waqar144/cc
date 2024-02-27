@@ -163,6 +163,22 @@ impl Type {
         }
     }
 
+    pub fn alignment(&self) -> usize {
+        *match self {
+            Type::Void { alignment, .. } => alignment,
+            Type::Char { alignment, .. } => alignment,
+            Type::Short { alignment, .. } => alignment,
+            Type::Int { alignment, .. } => alignment,
+            Type::Long { alignment, .. } => alignment,
+            Type::Ptr { alignment, .. } => alignment,
+            Type::Func(_) => panic!(),
+            Type::Array { alignment, .. } => alignment,
+            Type::Struct { alignment, .. } => alignment,
+            Type::Union { alignment, .. } => alignment,
+            Type::NoType => panic!(),
+        }
+    }
+
     pub fn is_int(&self) -> bool {
         matches!(self, Self::Int { .. })
     }

@@ -210,4 +210,12 @@ impl Type {
     pub fn is_array(&self) -> bool {
         matches!(self, Self::Array { .. })
     }
+
+    pub fn as_func(&self) -> Option<&FuncType> {
+        if let Self::Func(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }

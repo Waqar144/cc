@@ -1176,8 +1176,41 @@ impl Parser<'_> {
     }
 
     fn function_call(&mut self) -> Node {
-        // TODO
-        Node::Invalid
+        let func_ret_ty = {
+            let func = self.find_func_var();
+            if let None = func {
+                eprintln!("Unknown function");
+                panic!();
+            }
+            let func = func.unwrap();
+            if let None = func.ty.as_func() {
+                eprintln!("Not a function");
+                panic!();
+            } else {
+                *func.ty.as_func().unwrap().return_type.clone()
+            }
+        };
+
+        self.tokens.get_mut().next();
+        self.tokens.get_mut().next();
+
+        let mut args: Vec<Node> = Vec::new();
+        let mut first = true;
+        while !self.next_token_equals(")") {
+            if !first {
+                self.skip(",");
+            }
+            first = false;
+            let mut assign = self.assign();
+            assign.add_type();
+            args.push(assign);
+        }
+        self.skip(")");
+
+        Node::FunctionCall(FunctionCall {
+            args,
+            ty: func_ret_ty,
+        })
     }
 
     fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {
@@ -1234,6 +1267,24 @@ impl Parser<'_> {
                 let var = locals[*idx].clone();
                 self.locals.set(locals);
                 return Some(var);
+            }
+        }
+        None
+    }
+
+    fn find_func_var(&mut self) -> Option<&FunctionObject> {
+        let token = self.peek().unwrap();
+        let text = self.text(&token);
+        if let Some(Scope::Object {
+            name,
+            is_global,
+            idx,
+        }) = self.find_var_scope(text)
+        {
+            if *is_global {
+                if let Object::FunctionObject(f) = &self.globals[*idx] {
+                    return Some(f);
+                }
             }
         }
         None

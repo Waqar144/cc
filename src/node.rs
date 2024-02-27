@@ -78,6 +78,11 @@ pub struct StructMembr {
     pub member: StructMember,
 }
 
+pub struct FunctionCall {
+    pub args: Vec<Node>,
+    pub ty: Type,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
@@ -103,6 +108,7 @@ pub enum Node {
     If(If),
     Return(Return),
     StructMember(StructMembr),
+    FunctionCall(FunctionCall),
     Invalid,
 }
 
@@ -245,6 +251,7 @@ impl Node {
                 r.lhs.add_type();
             }
             Node::StructMember(_) => (),
+            Node::FunctionCall(f) => f.ty = Type::long_type(),
         }
     }
 
@@ -269,6 +276,7 @@ impl Node {
             Node::If(_) => &Type::NoType,
             Node::Return(r) => r.lhs.ty(),
             Node::StructMember(s) => &s.member.ty,
+            Node::FunctionCall(f) => &f.ty,
         }
     }
 }

@@ -13,6 +13,8 @@ const ARG_REGS64: [&'static str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%
 struct CodeGenerator<'a> {
     writer: &'a mut dyn Write,
     program: &'a Vec<Object>,
+    counter: usize,
+    current_fn_name: String,
 }
 
 impl CodeGenerator<'_> {
@@ -42,8 +44,72 @@ impl CodeGenerator<'_> {
         let _ = writeln!(self.writer, "{s}");
     }
 
+    fn next_count(&mut self) -> usize {
+        let c = self.counter;
+        self.counter += 1;
+        c
+    }
+
+    fn gen_expr(&mut self, node: &Node) {}
+
     fn gen_stmt(&mut self, node: &Node) {
-        //
+        match node {
+            Node::For(f) => {
+                let c = self.next_count();
+                self.gen_stmt(&*f.init);
+                self.emit(&format!(".L.begin.{}:", c));
+
+                if let Some(cond) = &f.cond {
+                    self.gen_expr(&*cond);
+                    self.emit("  cmp $0, %rax");
+                    self.emit(&format!("  je .L.end.{}", c));
+                }
+
+                self.gen_stmt(&*f.then);
+                if let Some(inc) = &f.inc {
+                    self.gen_expr(&*inc);
+                }
+                self.emit(&format!("  jmp .L.begin.{}", c));
+                self.emit(&format!(".L.end.{}:", c));
+            }
+            Node::While(w) => {
+                let c = self.next_count();
+
+                self.emit(&format!(".L.begin.{}:", c));
+
+                self.gen_expr(&*w.cond);
+                self.emit("  cmp $0, %rax");
+                self.emit(&format!("  je .L.end.{}", c));
+                self.gen_stmt(&*w.then);
+                self.emit(&format!("  jmp .L.begin.{}", c));
+                self.emit(&format!(".L.end.{}:", c));
+            }
+            Node::If(i) => {
+                let c = self.next_count();
+                self.gen_expr(&*i.cond);
+
+                self.emit(&format!("  cmp $0, %rax"));
+                self.emit(&format!("  je .L.else.{}", c));
+                self.gen_stmt(&*i.then);
+                self.emit(&format!("  jmp .L.end.{}", c));
+                self.emit(&format!(".L.else.{}:", c));
+                if let Some(els) = &i.els {
+                    self.gen_stmt(&*els);
+                }
+                self.emit(&format!(".L.end.{}:", c));
+            }
+            Node::Block(block) => {
+                for node in block.block_body.iter() {
+                    self.gen_stmt(&node)
+                }
+            }
+            Node::Return(r) => {
+                self.gen_expr(&*r.lhs);
+                self.emit(&format!("  jmp .L.return.{}", self.current_fn_name));
+            }
+            Node::ExprStmt(e) => self.gen_expr(&*e.lhs),
+            _ => (),
+        }
     }
 
     fn align_to(n: usize, align: usize) -> usize {
@@ -126,6 +192,8 @@ impl CodeGenerator<'_> {
                 }
             }
 
+            self.current_fn_name = f.name.clone();
+
             for node in f.body.iter() {
                 self.gen_stmt(node);
             }
@@ -144,6 +212,11 @@ impl CodeGenerator<'_> {
 }
 
 pub fn generate(writer: &mut dyn Write, program: &Vec<Object>) {
-    let mut gen = CodeGenerator { writer, program };
+    let mut gen = CodeGenerator {
+        writer,
+        program,
+        counter: 1,
+        current_fn_name: String::new(),
+    };
     gen.generate();
 }

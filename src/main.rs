@@ -1,3 +1,4 @@
+mod codegen;
 mod lexer;
 mod node;
 mod parser;
@@ -26,6 +27,7 @@ fn main() {
     let mut parser = parser::Parser::new(&contents, &toks);
     parser.parse();
 
+    codegen::generate(&mut std::io::stdout(), &parser.globals);
     // for tok in toks {
     //     println!("{tok:?},");
     // }

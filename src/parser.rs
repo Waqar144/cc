@@ -8,12 +8,12 @@ use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
 pub struct FunctionObject {
-    name: String,
-    locals: Vec<VarObject>,
-    params: Vec<Object>,
-    is_func_def: bool,
-    body: Vec<Node>,
-    ty: Type,
+    pub name: String,
+    pub locals: Vec<VarObject>,
+    pub params: Vec<Object>,
+    pub is_func_def: bool,
+    pub body: Vec<Node>,
+    pub ty: Type,
 }
 
 #[derive(Clone)]
@@ -85,7 +85,7 @@ struct Scopes {
 
 pub struct Parser<'a> {
     source: &'a str,
-    globals: Vec<Object>,
+    pub globals: Vec<Object>,
     scopes: Vec<Scopes>,
     locals: Cell<Vec<VarObject>>,
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,

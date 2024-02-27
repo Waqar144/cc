@@ -228,7 +228,7 @@ impl Node {
             Node::Return(r) => {
                 r.lhs.add_type();
             }
-            Node::StructMember(_) => todo!(),
+            Node::StructMember(_) => (),
         }
     }
 

@@ -5,6 +5,11 @@ use crate::{
     parser::{Object, VarObject},
 };
 
+const ARG_REGS8: [&'static str; 6] = ["%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"];
+const ARG_REGS16: [&'static str; 6] = ["%di", "%si", "%dx", "%cx", "%r8w", "%r9w"];
+const ARG_REGS32: [&'static str; 6] = ["%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"];
+const ARG_REGS64: [&'static str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+
 struct CodeGenerator<'a> {
     writer: &'a mut dyn Write,
     program: &'a Vec<Object>,
@@ -67,13 +72,42 @@ impl CodeGenerator<'_> {
                 self.emit(&format!("  sub ${}, %rsp", stack_size));
             }
 
+            let mut i = 0;
             for param in f.params.iter() {
+                let Object::VarObject(v) = param else {
+                    continue;
+                };
+
                 match param.ty().size() {
-                    1 => (),
-                    2 => (),
-                    4 => (),
-                    8 => (),
-                    _ => (),
+                    1 => {
+                        let code = format!("  mov {}, {}(%rbp)", ARG_REGS8[i], v.offset.get());
+                        self.emit(&code);
+                        i += 1;
+                    }
+                    2 => {
+                        let code = format!("  mov {}, {}(%rbp)", ARG_REGS16[i], v.offset.get());
+                        self.emit(&code);
+                        i += 1;
+                    }
+                    4 => {
+                        let code = format!("  mov {}, {}(%rbp)", ARG_REGS32[i], v.offset.get());
+                        self.emit(&code);
+                        i += 1;
+                    }
+                    8 => {
+                        let code = format!("  mov {}, {}(%rbp)", ARG_REGS64[i], v.offset.get());
+                        self.emit(&code);
+                        i += 1;
+                    }
+                    _ => {
+                        eprintln!("Unknown ty size");
+                        panic!();
+                    }
+                }
+
+                if i >= 6 {
+                    eprintln!("More than 6 args not supported");
+                    panic!();
                 }
             }
 

@@ -72,6 +72,11 @@ pub struct Return {
     pub lhs: Box<Node>,
 }
 
+pub struct StructMembr {
+    pub lhs: Box<Node>,
+    pub member: StructMember,
+}
+
 pub enum Node {
     Block(Block),
     Variable(Variable),
@@ -96,6 +101,7 @@ pub enum Node {
     For(For),
     If(If),
     Return(Return),
+    StructMember(StructMembr),
     Invalid,
 }
 
@@ -209,6 +215,7 @@ impl Node {
             Node::Return(r) => {
                 r.lhs.add_type();
             }
+            Node::StructMember(_) => todo!(),
         }
     }
 
@@ -238,6 +245,7 @@ impl Node {
             Node::For(_) => todo!(),
             Node::If(_) => todo!(),
             Node::Return(_) => todo!(),
+            Node::StructMember(_) => todo!(),
         }
     }
 }

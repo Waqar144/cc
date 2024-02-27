@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 #![allow(unused)]
-use crate::parser::StructMember;
 
 #[derive(Clone, Debug)]
 pub struct FuncParamType {
@@ -12,6 +11,13 @@ pub struct FuncParamType {
 pub struct FuncType {
     pub return_type: Box<Type>,
     pub params: Vec<FuncParamType>,
+}
+
+#[derive(Clone, Debug)]
+pub struct StructMember {
+    pub name: String,
+    pub ty: Type,
+    pub offset: usize,
 }
 
 #[derive(Clone, Debug)]

@@ -7,13 +7,6 @@ use crate::node::*;
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
-#[derive(Clone, Debug)]
-pub struct StructMember {
-    name: String,
-    ty: Box<Type>, // TODO
-    offset: usize,
-}
-
 pub struct FunctionObject {
     name: String,
     locals: Vec<VarObject>,
@@ -805,8 +798,34 @@ impl Parser<'_> {
         panic!();
     }
 
-    fn struct_ref(&mut self, left: Node) -> Node {
-        Node::Invalid
+    fn get_struct_member(members: &Vec<StructMember>, name: &str) -> StructMember {
+        for member in members {
+            if member.name == name {
+                return member.clone(); // TODO do better, return index into vec?
+            }
+        }
+
+        eprintln!("Unknown struct member {name}");
+        panic!();
+    }
+
+    fn struct_ref(&mut self, mut left: Node) -> Node {
+        left.add_type();
+
+        match left.ty() {
+            Type::Struct { members, .. } | Type::Union { members, .. } => {
+                self.tokens.get_mut().next();
+                let member = Self::get_struct_member(members, self.next_token_text());
+                return Node::StructMember(StructMembr {
+                    lhs: Box::new(left),
+                    member,
+                });
+            }
+            _ => {
+                eprintln!("Expected a struct or union");
+                panic!();
+            }
+        };
     }
 
     // postfix = primary ("[" expr "]")* | "." ident)*

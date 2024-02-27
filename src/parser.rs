@@ -158,6 +158,19 @@ impl Parser<'_> {
         None
     }
 
+    fn find_typedef(&mut self) -> Option<Type> {
+        if self.next_token_kind_is(TokenKind::Identifier) {
+            let name = self.next_token_text().to_string();
+            return self.find_var_scope(&name).and_then(|ts| {
+                if let Scope::TypeDef { typedef, .. } = ts {
+                    return Some(typedef.clone());
+                }
+                None
+            });
+        }
+        None
+    }
+
     fn parse_struct_members(&mut self) -> Vec<StructMember> {
         let mut members = Vec::new();
         while !self.next_token_equals("}") {
@@ -301,7 +314,11 @@ impl Parser<'_> {
                 break;
             }
 
-            // TODO let ty2 = self.find_typedef();
+            if let Some(ty2) = self.find_typedef() {
+                ty = ty2;
+                self.tokens.get_mut().next(); // advance
+                continue;
+            }
 
             counter += match self.next_token_text() {
                 "void" => CTypes::VOID as usize,
@@ -312,11 +329,13 @@ impl Parser<'_> {
                 "struct" => {
                     ty = self.struct_decl();
                     counter += CTypes::OTHER as usize;
+                    self.tokens.get_mut().next(); // advance
                     continue;
                 }
                 "union" => {
                     ty = self.union_decl();
                     counter += CTypes::OTHER as usize;
+                    self.tokens.get_mut().next(); // advance
                     continue;
                 }
                 _ => {
@@ -479,10 +498,7 @@ impl Parser<'_> {
                 break;
             }
 
-            let is_typename = self
-                .peek()
-                .map(|t| self.is_typename(self.text(&t)))
-                .unwrap_or(false);
+            let is_typename = self.is_typename();
 
             let mut node = if (is_typename) {
                 let mut attr = VarAttr::default();
@@ -1193,18 +1209,20 @@ impl Parser<'_> {
         None
     }
 
-    fn is_typename(&self, token_text: &str) -> bool {
-        let type_keywords = [
-            "char", "int", "struct", "union", "long", "short", "void", "typedef",
-        ];
+    fn is_typename(&mut self) -> bool {
+        {
+            let type_keywords = [
+                "char", "int", "struct", "union", "long", "short", "void", "typedef",
+            ];
 
-        for k in type_keywords {
-            if token_text == k {
-                return true;
+            let text = self.next_token_text();
+            for k in type_keywords {
+                if text == k {
+                    return true;
+                }
             }
         }
-
-        false
+        self.find_typedef().is_some()
     }
 
     fn is_function(&mut self) -> bool {
@@ -1322,10 +1340,6 @@ impl Parser<'_> {
     }
 
     fn next_token_is_typename(&mut self) -> bool {
-        if let Some(tok) = self.peek() {
-            self.is_typename(tok.text(&self.source))
-        } else {
-            panic!()
-        }
+        self.is_typename()
     }
 }

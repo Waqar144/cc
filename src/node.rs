@@ -232,7 +232,7 @@ impl Node {
             Node::Variable(v) => v.var.ty(),
             Node::StmtExpr(se) => &se.ty,
             Node::Numeric(n) => &n.ty,
-            Node::Cast(_) => todo!(),
+            Node::Cast(c) => &c.ty,
             Node::Invalid => panic!(),
             Node::AddressOf(_) => todo!(),
             Node::Dereference(d) => &d.ty,

@@ -89,6 +89,7 @@ pub struct Parser<'a> {
     scopes: Vec<Scopes<'a>>,
     locals: Cell<Vec<VarObject>>,
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
+    current_fn_return_ty: Type,
     str_literal_counter: usize,
 }
 
@@ -101,6 +102,7 @@ impl Parser<'_> {
             locals: Cell::new(Vec::new()),
             tokens: tokens.iter().peekable().into(),
             str_literal_counter: 1,
+            current_fn_return_ty: Type::NoType,
         }
     }
 
@@ -303,6 +305,8 @@ impl Parser<'_> {
                 self.tokens.get_mut().next();
             }
 
+            self.current_fn_return_ty = *func.return_type.clone();
+
             println!("compound_stmt...");
             let body = self.compound_stmt();
 
@@ -436,7 +440,7 @@ impl Parser<'_> {
             self.skip("return");
             let node = Node::Cast(Cast {
                 lhs: Box::new(self.expr()),
-                ty: Type::NoType, // TODO current_fn return type
+                ty: self.current_fn_return_ty.clone(),
             });
             self.skip(";");
             return Node::Return(Return {

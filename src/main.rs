@@ -28,7 +28,4 @@ fn main() {
     parser.parse();
 
     codegen::generate(&mut std::io::stdout(), &parser.globals);
-    // for tok in toks {
-    //     println!("{tok:?},");
-    // }
 }

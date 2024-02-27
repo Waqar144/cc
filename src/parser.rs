@@ -18,8 +18,9 @@ pub struct FunctionObject {
 
 #[derive(Clone)]
 pub struct VarObject {
-    name: String,
-    ty: Type,
+    pub name: String,
+    pub ty: Type,
+    pub offset: Cell<i32>,
 }
 
 pub enum Object {
@@ -413,6 +414,7 @@ impl Parser<'_> {
         let obj = Object::VarObject(VarObject {
             name: name.to_string(),
             ty,
+            offset: 0.into(),
         });
 
         let idx = if is_global {
@@ -434,6 +436,7 @@ impl Parser<'_> {
             let obj = VarObject {
                 name: ty.name.clone(),
                 ty: ty.ty.clone(),
+                offset: 0.into(),
             };
             fn_locals.push(obj);
         }
@@ -659,7 +662,11 @@ impl Parser<'_> {
             let var = self.new_variable(&name, ty.clone(), false);
             let mut locals = self.locals.take();
             // duplicate for now
-            locals.push(VarObject { name, ty });
+            locals.push(VarObject {
+                name,
+                ty,
+                offset: 0.into(),
+            });
 
             if !self.next_token_equals("=") {
                 continue;
@@ -1128,6 +1135,7 @@ impl Parser<'_> {
             let obj = Object::VarObject(VarObject {
                 name: name.to_string(),
                 ty,
+                offset: 0.into(),
             });
             self.tokens.get_mut().next(); // skip str literal
             return Node::Variable(Variable { var: obj });

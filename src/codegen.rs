@@ -1,27 +1,9 @@
 use std::io::Write;
 
-use crate::parser::Object;
-
-// static void gen_data(const std::vector<std::unique_ptr<Object>>& prog)
-// {
-//     for (const auto& global : prog) {
-//         if (global->isFunction) {
-//             continue;
-//         }
-//
-//         println(".data");
-//         println("  .globl {}", global->name);
-//         println("{}:", global->name);
-//         if (global->initData.empty()) {
-//             println("  .zero {}", global->type->size);
-//         } else {
-//             for (int c : global->initData)
-//                 println("  .byte {}", c);
-//             println("  .byte 0");
-//         }
-//     }
-//     println("");
-// }
+use crate::{
+    node::Node,
+    parser::{Object, VarObject},
+};
 
 struct CodeGenerator<'a> {
     writer: &'a mut dyn Write,
@@ -30,7 +12,7 @@ struct CodeGenerator<'a> {
 
 impl CodeGenerator<'_> {
     fn gen_data(&mut self) {
-        for global in self.program {
+        for global in self.program.iter() {
             if let Object::FunctionObject(_) = global {
                 continue;
             }
@@ -41,10 +23,33 @@ impl CodeGenerator<'_> {
         let _ = writeln!(self.writer, "{s}");
     }
 
+    fn gen_stmt(&mut self, node: &Node) {
+        //
+    }
+
+    fn align_to(n: usize, align: usize) -> usize {
+        return ((n + align - 1) / align) * align;
+    }
+
+    fn assign_offset_to_local_vars(locals: &Vec<VarObject>) -> usize {
+        let mut off = 0;
+        for local in locals.iter().rev() {
+            off += local.ty.size();
+            off = Self::align_to(off, local.ty.alignment());
+            let local_offset = i32::try_from(off);
+            if let Err(e) = local_offset {
+                println!("usize -> i32 conversion failed: {e}");
+                panic!();
+            }
+            local.offset.set(-local_offset.unwrap());
+        }
+        Self::align_to(off, 16)
+    }
+
     fn generate(&mut self) {
         self.gen_data();
 
-        for global in self.program {
+        for global in self.program.iter() {
             let Object::FunctionObject(f) = global else {
                 continue;
             };
@@ -52,9 +57,29 @@ impl CodeGenerator<'_> {
                 continue;
             }
 
+            let stack_size = Self::assign_offset_to_local_vars(&f.locals);
+
             self.emit(&format!("  .globl {}", f.name));
             self.emit(&format!("  .text"));
             self.emit(&format!("{}:", f.name));
+
+            if stack_size > 0 {
+                self.emit(&format!("  sub ${}, %rsp", stack_size));
+            }
+
+            for param in f.params.iter() {
+                match param.ty().size() {
+                    1 => (),
+                    2 => (),
+                    4 => (),
+                    8 => (),
+                    _ => (),
+                }
+            }
+
+            for node in f.body.iter() {
+                self.gen_stmt(node);
+            }
 
             // prologue
             self.emit("  push %rbp");

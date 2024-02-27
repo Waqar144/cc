@@ -1190,6 +1190,7 @@ impl Parser<'_> {
                 *func.ty.as_func().unwrap().return_type.clone()
             }
         };
+        let name = self.next_token_text().to_string();
 
         self.tokens.get_mut().next();
         self.tokens.get_mut().next();
@@ -1208,6 +1209,7 @@ impl Parser<'_> {
         self.skip(")");
 
         Node::FunctionCall(FunctionCall {
+            name,
             args,
             ty: func_ret_ty,
         })

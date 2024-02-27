@@ -79,6 +79,7 @@ pub struct StructMembr {
 }
 
 pub struct FunctionCall {
+    pub name: String,
     pub args: Vec<Node>,
     pub ty: Type,
 }

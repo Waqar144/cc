@@ -164,7 +164,19 @@ impl CodeGenerator<'_> {
                     self.gen_stmt(node);
                 }
             }
-            // TODO function call
+            Node::FunctionCall(f) => {
+                for arg in f.args.iter() {
+                    self.gen_expr(arg);
+                    self.push();
+                }
+
+                for n in (0..f.args.len()).rev() {
+                    self.pop(ARG_REGS64[n]);
+                }
+
+                self.emit("  xor %rax, %rax\t #clear rax, func call ");
+                self.emit(&format!("  call {}", f.name));
+            }
             Node::Comma(c) => {
                 self.gen_expr(&*c.lhs);
                 self.gen_expr(&*c.rhs);

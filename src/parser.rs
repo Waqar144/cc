@@ -160,30 +160,26 @@ impl Parser<'_> {
         let mut ty = Type::NoType;
 
         while let Some(token) = self.peek() {
-            // let text = self.text_mut(token);
-            let text = self.text(&token);
-
-            if !self.is_typename(text) {
+            if !self.next_token_is_typename() {
                 break;
             }
 
-            if text == "struct" || text == "union" {
-                // TODO
+            if self.next_token_equals("struct") || self.next_token_equals("union") {
+                //
+                counter += CTypes::OTHER as usize;
             }
 
-            if text == "void" {
-                counter += CTypes::VOID as usize;
-            } else if text == "char" {
-                counter += CTypes::CHAR as usize;
-            } else if text == "short" {
-                counter += CTypes::SHORT as usize;
-            } else if text == "int" {
-                counter += CTypes::INT as usize;
-            } else if text == "long" {
-                counter += CTypes::LONG as usize;
-            } else {
-                // PRINT_ERROR(toks->start, "unexpected type, bug..");
-            }
+            counter += match self.next_token_text() {
+                "void" => CTypes::VOID as usize,
+                "char" => CTypes::CHAR as usize,
+                "short" => CTypes::SHORT as usize,
+                "int" => CTypes::INT as usize,
+                "long" => CTypes::LONG as usize,
+                _ => {
+                    eprintln!("unexpected type {}", self.next_token_text());
+                    panic!();
+                }
+            };
 
             ty = match counter {
                 x if x == CTypes::VOID as usize => Type::void_type(),

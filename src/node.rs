@@ -160,7 +160,13 @@ impl Node {
             }
             Node::Cast(_) => (),
             Node::Invalid => panic!(),
-            Node::AddressOf(_) => todo!(),
+            Node::AddressOf(a) => {
+                if a.lhs.ty().is_array() {
+                    a.ty = Type::pointer_to(*a.lhs.ty().base_ty().unwrap().clone());
+                } else {
+                    a.ty = Type::pointer_to(a.lhs.ty().clone());
+                }
+            }
             Node::Dereference(d) => {
                 if !d.lhs.ty().is_ptr() {
                     eprintln!("Invalid Dereference!");
@@ -234,7 +240,7 @@ impl Node {
             Node::Numeric(n) => &n.ty,
             Node::Cast(c) => &c.ty,
             Node::Invalid => panic!(),
-            Node::AddressOf(_) => todo!(),
+            Node::AddressOf(a) => &a.ty,
             Node::Dereference(d) => &d.ty,
             Node::Neg(n) => n.lhs.ty(),
             Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => &n.ty,

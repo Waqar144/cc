@@ -22,6 +22,7 @@ pub struct VarObject {
     pub ty: Type,
     pub offset: Cell<i32>,
     pub init_data: String,
+    pub is_local: bool,
 }
 
 pub enum Object {
@@ -31,7 +32,15 @@ pub enum Object {
 }
 
 impl Object {
-    fn as_var_object(&mut self) -> &mut VarObject {
+    fn as_var_object_mut(&mut self) -> &mut VarObject {
+        if let Self::VarObject(v) = self {
+            v
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn as_var_object(&self) -> &VarObject {
         if let Self::VarObject(v) = self {
             v
         } else {
@@ -417,6 +426,7 @@ impl Parser<'_> {
             ty,
             offset: 0.into(),
             init_data: String::new(),
+            is_local: !is_global,
         });
 
         let idx = if is_global {
@@ -440,6 +450,7 @@ impl Parser<'_> {
                 ty: ty.ty.clone(),
                 offset: 0.into(),
                 init_data: String::new(),
+                is_local: true,
             };
             fn_locals.push(obj);
         }
@@ -670,6 +681,7 @@ impl Parser<'_> {
                 ty,
                 offset: 0.into(),
                 init_data: String::new(),
+                is_local: true,
             });
 
             if !self.next_token_equals("=") {
@@ -1135,7 +1147,7 @@ impl Parser<'_> {
             let name = format!(".L..{}", v);
             let ty = Type::array_of(Type::char_type(), tok.len);
             let mut var = self.new_variable(&name, ty.clone(), true);
-            var.as_var_object().init_data = tok.string_literal.unwrap();
+            var.as_var_object_mut().init_data = tok.string_literal.unwrap();
             self.globals.push(var);
             // create a copy for now
             let obj = Object::VarObject(VarObject {
@@ -1143,6 +1155,7 @@ impl Parser<'_> {
                 ty,
                 offset: 0.into(),
                 init_data: String::new(), // initdata not needed
+                is_local: false,
             });
             self.tokens.get_mut().next(); // skip str literal
             return Node::Variable(Variable { var: obj });
@@ -1163,6 +1176,7 @@ impl Parser<'_> {
     }
 
     fn function_call(&mut self) -> Node {
+        // TODO
         Node::Invalid
     }
 

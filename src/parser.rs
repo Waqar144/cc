@@ -1255,14 +1255,19 @@ impl Parser<'_> {
         }
 
         if self.next_token_equals("(") {
+            let tokens = self.tokens.get_mut().clone();
             self.skip("(");
             // skip identifer, use a dummy type
             let mut dummy = Type::NoType;
             self.declarator(&mut dummy);
-
-            // TODO
-
             self.skip(")");
+
+            // get the type suffix
+            *ty = self.type_suffix((*ty).clone());
+            // reset
+            self.tokens.set(tokens);
+            // get the ident
+            return self.declarator(ty);
         }
 
         if !self.next_token_kind_is(TokenKind::Identifier) {

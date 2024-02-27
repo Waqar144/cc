@@ -21,6 +21,7 @@ pub struct VarObject {
     pub name: String,
     pub ty: Type,
     pub offset: Cell<i32>,
+    pub init_data: String,
 }
 
 pub enum Object {
@@ -30,7 +31,7 @@ pub enum Object {
 }
 
 impl Object {
-    fn as_var_object(self) -> VarObject {
+    fn as_var_object(&mut self) -> &mut VarObject {
         if let Self::VarObject(v) = self {
             v
         } else {
@@ -415,6 +416,7 @@ impl Parser<'_> {
             name: name.to_string(),
             ty,
             offset: 0.into(),
+            init_data: String::new(),
         });
 
         let idx = if is_global {
@@ -437,6 +439,7 @@ impl Parser<'_> {
                 name: ty.name.clone(),
                 ty: ty.ty.clone(),
                 offset: 0.into(),
+                init_data: String::new(),
             };
             fn_locals.push(obj);
         }
@@ -666,6 +669,7 @@ impl Parser<'_> {
                 name,
                 ty,
                 offset: 0.into(),
+                init_data: String::new(),
             });
 
             if !self.next_token_equals("=") {
@@ -1127,15 +1131,18 @@ impl Parser<'_> {
             let tok = self.peek().unwrap();
             let v = self.str_literal_counter;
             self.str_literal_counter += 1;
+            // tok.string_literal TODO
             let name = format!(".L..{}", v);
             let ty = Type::array_of(Type::char_type(), tok.len);
-            let var = self.new_variable(&name, ty.clone(), true);
+            let mut var = self.new_variable(&name, ty.clone(), true);
+            var.as_var_object().init_data = tok.string_literal.unwrap();
             self.globals.push(var);
             // create a copy for now
             let obj = Object::VarObject(VarObject {
                 name: name.to_string(),
                 ty,
                 offset: 0.into(),
+                init_data: String::new(), // initdata not needed
             });
             self.tokens.get_mut().next(); // skip str literal
             return Node::Variable(Variable { var: obj });

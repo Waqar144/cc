@@ -18,10 +18,24 @@ struct CodeGenerator<'a> {
 impl CodeGenerator<'_> {
     fn gen_data(&mut self) {
         for global in self.program.iter() {
-            if let Object::FunctionObject(_) = global {
+            let Object::VarObject(o) = global else {
                 continue;
+            };
+
+            self.emit(&format!(".data"));
+            self.emit(&format!("  .globl {}", o.name));
+            self.emit(&format!("{}:", o.name));
+
+            if o.init_data.is_empty() {
+                self.emit(&format!("  .zero {}", o.ty.size()));
+            } else {
+                for c in o.init_data.as_bytes() {
+                    self.emit(&format!("  .byte {}", c));
+                }
+                self.emit("  .byte 0");
             }
         }
+        self.emit(""); // newline
     }
 
     fn emit(&mut self, s: &str) {
@@ -52,6 +66,7 @@ impl CodeGenerator<'_> {
     }
 
     fn generate(&mut self) {
+        // generate data for globals
         self.gen_data();
 
         for global in self.program.iter() {

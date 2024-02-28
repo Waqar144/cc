@@ -220,6 +220,23 @@ pub fn tokenize(source: &str) -> Vec<Token> {
     tokens
 }
 
+fn exit_with_error(error: &str, line: usize, source: &str, offset: usize) -> ! {
+    // let mut span = &source[offset..];
+
+    let line_start = source[..offset].rfind('\n').unwrap_or(0);
+    let span = if let Some(new_line) = source[offset..].find('\n') {
+        &source[line_start..(offset + new_line)]
+        // span = &span[..new_line];
+    } else {
+        &source[line_start..]
+    };
+
+    eprintln!("{}", span);
+    eprintln!("{:>offset$}", "^", offset = offset - line_start);
+    eprintln!("Error:{line}: {error}");
+    std::process::exit(1);
+}
+
 #[test]
 fn test_tokenize() {
     use crate::token::TokenKind;
@@ -254,21 +271,4 @@ fn test_tokenize() {
     for (left, right) in toks.iter().zip(expected.iter()) {
         assert_eq!(left, right);
     }
-}
-
-fn exit_with_error(error: &str, line: usize, source: &str, offset: usize) -> ! {
-    // let mut span = &source[offset..];
-
-    let line_start = source[..offset].rfind('\n').unwrap_or(0);
-    let span = if let Some(new_line) = source[offset..].find('\n') {
-        &source[line_start..(offset + new_line)]
-        // span = &span[..new_line];
-    } else {
-        &source[line_start..]
-    };
-
-    eprintln!("{}", span);
-    eprintln!("{:>offset$}", "^", offset = offset - line_start);
-    eprintln!("Error:{line}: {error}");
-    std::process::exit(1);
 }

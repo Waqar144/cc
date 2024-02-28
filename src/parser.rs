@@ -361,7 +361,10 @@ impl Parser<'_> {
                 x if x == CTypes::SHORT as usize
                     || x == (CTypes::SHORT as usize) + (CTypes::INT as usize) =>
                 {
-                    Type::int_type()
+                    Type::Short {
+                        size: 2,
+                        alignment: 2,
+                    }
                 }
                 x if x == CTypes::INT as usize => Type::int_type(),
                 x if x == CTypes::LONG as usize

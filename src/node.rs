@@ -199,7 +199,9 @@ impl Node {
                     n.ty = Type::long_type();
                 }
             }
-            Node::Cast(_) => (),
+            Node::Cast(c) => {
+                c.lhs.add_type();
+            }
             Node::Invalid => panic!(),
             Node::AddressOf(a) => {
                 if a.lhs.ty().is_array() {
@@ -281,7 +283,11 @@ impl Node {
                 r.lhs.add_type();
             }
             Node::StructMember(_) => (),
-            Node::FunctionCall(f) => f.ty = Type::long_type(),
+            Node::FunctionCall(f) => {
+                if let Type::NoType = f.ty {
+                    f.ty = Type::long_type();
+                }
+            }
         }
     }
 

@@ -418,22 +418,18 @@ impl CodeGenerator<'_> {
                     1 => {
                         let code = format!("  mov {}, {}(%rbp)", ARG_REGS8[i], v.offset.get());
                         self.emit(&code);
-                        i += 1;
                     }
                     2 => {
                         let code = format!("  mov {}, {}(%rbp)", ARG_REGS16[i], v.offset.get());
                         self.emit(&code);
-                        i += 1;
                     }
                     4 => {
                         let code = format!("  mov {}, {}(%rbp)", ARG_REGS32[i], v.offset.get());
                         self.emit(&code);
-                        i += 1;
                     }
                     8 => {
                         let code = format!("  mov {}, {}(%rbp)", ARG_REGS64[i], v.offset.get());
                         self.emit(&code);
-                        i += 1;
                     }
                     _ => {
                         eprintln!("Unknown ty size");
@@ -445,6 +441,7 @@ impl CodeGenerator<'_> {
                     eprintln!("More than 6 args not supported");
                     panic!();
                 }
+                i += 1;
             }
 
             self.current_fn_name = f.name.clone();

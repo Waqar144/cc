@@ -103,6 +103,8 @@ pub struct Parser<'a> {
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
     current_fn_return_ty: Type,
     str_literal_counter: usize,
+    // the current function being parsed
+    current_fn: Option<FunctionObject>,
 }
 
 impl Parser<'_> {
@@ -115,6 +117,7 @@ impl Parser<'_> {
             tokens: tokens.iter().peekable().into(),
             str_literal_counter: 1,
             current_fn_return_ty: Type::NoType,
+            current_fn: None,
         }
     }
 
@@ -143,7 +146,12 @@ impl Parser<'_> {
                 let func = self.function(base_type);
                 self.globals.push(func);
                 continue;
+            } else {
+                self.tokens.set(tokens_copy);
             }
+
+            let globals = self.global_variables(base_type);
+            self.globals.extend(globals);
         }
     }
 
@@ -460,14 +468,30 @@ impl Parser<'_> {
 
     fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<usize> {
         let mut locals_idxes: Vec<usize> = Vec::new();
-        let mut locals = self.locals.take();
         for ty in param_types {
-            let idx = locals.len();
-            locals.push(self.new_variable(&ty.name, ty.ty.clone(), false));
+            let var = self.new_variable(&ty.name, ty.ty.clone(), false);
+            let idx = self.locals.get_mut().len();
+            self.locals.get_mut().push(var);
             locals_idxes.push(idx);
         }
-        self.locals.set(locals);
         locals_idxes
+    }
+
+    fn global_variables(&mut self, base_ty: Type) -> Vec<Object> {
+        let mut first = true;
+        let mut globals = Vec::new();
+        while !self.consume(";") {
+            if !first {
+                self.skip(",");
+            }
+            first = false;
+
+            let mut base_ty = base_ty.clone();
+            let (ty, ident) = self.declarator(&mut base_ty);
+            let obj = self.new_variable(&ident, ty, true);
+            globals.push(obj);
+        }
+        globals
     }
 
     fn function(&mut self, base_ty: Type) -> Object {
@@ -497,14 +521,16 @@ impl Parser<'_> {
 
         if let Type::Func(func) = ty {
             let params = self.create_param_local_vars(&func.params);
+
             self.consume("{");
 
             self.current_fn_return_ty = *func.return_type.clone();
+            self.current_fn = Some(function.as_function_object());
 
             let body = self.compound_stmt();
 
             self.leave_scope();
-            let mut f = function.as_function_object();
+            let mut f = self.current_fn.take().unwrap();
             f.params = params;
             f.is_func_def = true;
             f.body = vec![body];
@@ -1303,6 +1329,18 @@ impl Parser<'_> {
         }) = self.find_var_scope(text)
         {
             if *is_global {
+                // if idx is greater/eq
+                if *idx >= self.globals.len() {
+                    // its recursion?
+                    return self.current_fn.as_ref().and_then(|f| {
+                        if f.name == *name {
+                            Some(f)
+                        } else {
+                            None
+                        }
+                    });
+                }
+
                 if let Object::FunctionObject(f) = &self.globals[*idx] {
                     return Some(f);
                 }

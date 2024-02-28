@@ -1090,6 +1090,7 @@ impl Parser<'_> {
             let tokens_copy = self.tokens.get_mut().clone();
             if self.consume("(") && self.next_token_is_typename() {
                 let t = self.typename();
+                self.skip(")");
                 return Node::Numeric(Numeric {
                     val: t.size(),
                     ty: Type::NoType,

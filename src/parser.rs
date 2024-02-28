@@ -1392,19 +1392,22 @@ impl Parser<'_> {
         }
 
         if self.next_token_equals("(") {
-            let tokens = self.tokens.get_mut().clone();
             self.skip("(");
+            let tokens = self.tokens.get_mut().clone();
             // skip identifer, use a dummy type
-            let mut dummy = Type::NoType;
+            let mut dummy = Type::int_type();
             self.declarator(&mut dummy);
             self.skip(")");
 
             // get the type suffix
             *ty = self.type_suffix((*ty).clone());
-            // reset
+            // save advanced position
+            let moved = self.tokens.get_mut().clone();
+            // get the ident, start from prev saved position
             self.tokens.set(tokens);
-            // get the ident
-            return self.declarator(ty);
+            let t = self.declarator(ty);
+            self.tokens.set(moved); // restore
+            return t;
         }
 
         if !self.next_token_kind_is(TokenKind::Identifier) {

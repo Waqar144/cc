@@ -116,25 +116,16 @@ impl Type {
             Type::Int { size, alignment } => (size, alignment),
             Type::Long { size, alignment } => (size, alignment),
             Type::Ptr {
-                size,
-                alignment,
-                base,
+                size, alignment, ..
             } => (size, alignment),
             Type::Array {
-                size,
-                alignment,
-                array_len,
-                base,
+                size, alignment, ..
             } => (size, alignment),
             Type::Struct {
-                size,
-                alignment,
-                members,
+                size, alignment, ..
             } => (size, alignment),
             Type::Union {
-                size,
-                alignment,
-                members,
+                size, alignment, ..
             } => (size, alignment),
             _ => panic!(),
         };

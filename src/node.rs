@@ -218,6 +218,9 @@ impl Node {
                 n.ty = Type::int_type();
             }
             Node::Assign(n) => {
+                n.lhs.add_type();
+                n.rhs.add_type();
+
                 let lhs_ty = n.lhs.ty();
                 if lhs_ty.is_array() {
                     eprintln!("Not an lvalue");

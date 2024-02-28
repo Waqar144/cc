@@ -489,7 +489,6 @@ impl Parser<'_> {
 
             self.current_fn_return_ty = *func.return_type.clone();
 
-            println!("compound_stmt...");
             let body = self.compound_stmt();
 
             self.leave_scope();

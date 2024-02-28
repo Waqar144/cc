@@ -241,16 +241,15 @@ fn test_tokenize() {
         Token { start: 8, len: 1, val: None, line_no: 0, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 9, len: 1, val: None, line_no: 0, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 11, len: 1, val: None, line_no: 0, string_literal: None, kind: TokenKind::Reserved },
-        Token { start: 54, len: 1, val: None, line_no: 2, string_literal: None, kind: TokenKind::Reserved },
-        Token { start: 55, len: 1, val: None, line_no: 2, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 61, len: 7, val: None, line_no: 3, string_literal: Some("hello".into()), kind: TokenKind::StringLiteral },
         Token { start: 68, len: 1, val: None, line_no: 3, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 74, len: 6, val: None, line_no: 4, string_literal: None, kind: TokenKind::Keyword },
         Token { start: 81, len: 3, val: Some(420), line_no: 4, string_literal: None, kind: TokenKind::Numeric },
         Token { start: 84, len: 1, val: None, line_no: 4, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 86, len: 1, val: None, line_no: 5, string_literal: None, kind: TokenKind::Reserved },
-        Token { start: 0, len: 0, val: None, line_no: 6, string_literal: None, kind: TokenKind::TOKEOF },
+        Token { start: 0, len: 0, val: None, line_no: 6, string_literal: None, kind: TokenKind::TOKEOF }
     ];
+
     assert_eq!(toks.len(), expected.len());
     for (left, right) in toks.iter().zip(expected.iter()) {
         assert_eq!(left, right);

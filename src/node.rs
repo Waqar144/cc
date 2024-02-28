@@ -209,6 +209,7 @@ impl Node {
                 }
             }
             Node::Dereference(d) => {
+                d.lhs.add_type();
                 if !d.lhs.ty().is_ptr() {
                     eprintln!("Invalid Dereference!");
                     panic!();

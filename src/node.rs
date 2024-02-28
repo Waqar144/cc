@@ -258,6 +258,8 @@ impl Node {
                 e.lhs.add_type();
             }
             Node::Comma(c) => {
+                c.lhs.add_type();
+                c.rhs.add_type();
                 c.ty = c.rhs.ty().clone();
             }
             Node::While(w) => {

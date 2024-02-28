@@ -257,9 +257,9 @@ impl CodeGenerator<'_> {
         let mut di = "";
         let mut ax = "";
         if let Some(b) = node.binary_node() {
-            self.gen_expr(&*b.lhs);
-            self.push();
             self.gen_expr(&*b.rhs);
+            self.push();
+            self.gen_expr(&*b.lhs);
             self.pop("%rdi");
 
             if b.lhs.ty().size() == 8 {

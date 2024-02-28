@@ -119,10 +119,10 @@ impl CodeGenerator<'_> {
         }
 
         match ty.size() {
-            1 => self.emit("  mov %al, (%rdi)"),
-            2 => self.emit("  mov %ax, (%rdi)"),
-            4 => self.emit("  mov %eax, (%rdi)"),
-            8 => self.emit("  mov %rax, (%rdi)"),
+            1 => self.emit("  movsbl (%rax), %eax"),
+            2 => self.emit("  movswl (%rax), %eax"),
+            4 => self.emit("  movsxd (%rax), %rax"),
+            8 => self.emit("  mov (%rax), %rax"),
             _ => {
                 eprintln!("Unexpected ty size {}", ty.size());
                 panic!();

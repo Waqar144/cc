@@ -1143,7 +1143,6 @@ impl Parser<'_> {
             let tok = self.peek().unwrap();
             let v = self.str_literal_counter;
             self.str_literal_counter += 1;
-            // tok.string_literal TODO
             let name = format!(".L..{}", v);
             let ty = Type::array_of(Type::char_type(), tok.len);
             let mut var = self.new_variable(&name, ty.clone(), true);

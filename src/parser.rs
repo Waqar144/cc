@@ -150,8 +150,7 @@ impl Parser<'_> {
                 self.tokens.set(tokens_copy);
             }
 
-            let globals = self.global_variables(base_type);
-            self.globals.extend(globals);
+            self.parse_global_variables(base_type);
         }
     }
 
@@ -477,9 +476,8 @@ impl Parser<'_> {
         locals_idxes
     }
 
-    fn global_variables(&mut self, base_ty: Type) -> Vec<Object> {
+    fn parse_global_variables(&mut self, base_ty: Type) {
         let mut first = true;
-        let mut globals = Vec::new();
         while !self.consume(";") {
             if !first {
                 self.skip(",");
@@ -489,9 +487,8 @@ impl Parser<'_> {
             let mut base_ty = base_ty.clone();
             let (ty, ident) = self.declarator(&mut base_ty);
             let obj = self.new_variable(&ident, ty, true);
-            globals.push(obj);
+            self.globals.push(obj);
         }
-        globals
     }
 
     fn function(&mut self, base_ty: Type) -> Object {
@@ -1369,7 +1366,7 @@ impl Parser<'_> {
         if self.next_token_equals(";") {
             false
         } else {
-            let mut ty = Type::NoType;
+            let mut ty = Type::int_type();
             let (ty, x) = self.declarator(&mut ty);
             match ty {
                 Type::Func(_) => true,

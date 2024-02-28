@@ -681,6 +681,7 @@ impl Parser<'_> {
                 init_data: String::new(),
                 is_local: true,
             });
+            self.locals.set(locals);
 
             if !self.next_token_equals("=") {
                 continue;

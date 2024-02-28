@@ -1,8 +1,8 @@
-use std::io::Write;
+use std::{cell::Cell, io::Write};
 
 use crate::{
     node::Node,
-    parser::{Object, VarObject},
+    parser::{FunctionObject, Object, VarObject},
     ty::Type,
 };
 
@@ -17,6 +17,7 @@ struct CodeGenerator<'a> {
     counter: usize,
     current_fn_name: String,
     depth: usize,
+    current_fn: Cell<Option<&'a FunctionObject>>,
 }
 
 enum TypeId {
@@ -152,10 +153,29 @@ impl CodeGenerator<'_> {
         }
     }
 
+    fn var_object_for_idx(&self, idx: usize, is_local: bool) -> Option<&Object> {
+        if is_local {
+            if let Some(f) = self.current_fn.get() {
+                return f.locals.get(idx);
+            }
+        } else {
+            return self.program.get(idx);
+        }
+        None
+    }
+
     fn gen_address(&mut self, node: &Node) {
         match node {
             Node::Variable(v) => {
-                let var = v.var.as_var_object();
+                let var = self.var_object_for_idx(v.idx, v.is_local);
+                let Some(Object::VarObject(var)) = var else {
+                    eprintln!(
+                        "Expected to find a variable for given var idx, idx: {}, is_local: {}",
+                        v.idx, v.is_local
+                    );
+                    panic!();
+                };
+
                 if var.is_local {
                     self.emit(&format!("  lea {}(%rbp), %rax", var.offset.get()));
                 } else {
@@ -342,9 +362,13 @@ impl CodeGenerator<'_> {
         return ((n + align - 1) / align) * align;
     }
 
-    fn assign_offset_to_local_vars(locals: &Vec<VarObject>) -> usize {
+    fn assign_offset_to_local_vars(locals: &Vec<Object>) -> usize {
         let mut off = 0;
         for local in locals.iter().rev() {
+            let Object::VarObject(local) = local else {
+                eprintln!("Expected VarObject");
+                panic!();
+            };
             off += local.ty.size();
             off = Self::align_to(off, local.ty.alignment());
             let local_offset = i32::try_from(off);
@@ -384,11 +408,13 @@ impl CodeGenerator<'_> {
 
             let mut i = 0;
             for param in f.params.iter() {
-                let Object::VarObject(v) = param else {
-                    continue;
+                let l = f.locals.get(*param);
+                let Some(Object::VarObject(v)) = l else {
+                    eprintln!("Expected a local for given param idx {param}");
+                    panic!();
                 };
 
-                match param.ty().size() {
+                match v.ty.size() {
                     1 => {
                         let code = format!("  mov {}, {}(%rbp)", ARG_REGS8[i], v.offset.get());
                         self.emit(&code);
@@ -422,6 +448,8 @@ impl CodeGenerator<'_> {
             }
 
             self.current_fn_name = f.name.clone();
+            // store a ref to current function
+            self.current_fn.set(Some(f));
 
             for node in f.body.iter() {
                 self.gen_stmt(node);
@@ -443,6 +471,7 @@ pub fn generate(writer: &mut dyn Write, program: &Vec<Object>) {
         counter: 1,
         current_fn_name: String::new(),
         depth: 0,
+        current_fn: Cell::new(None),
     };
     gen.generate();
 }

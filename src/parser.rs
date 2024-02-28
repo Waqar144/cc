@@ -9,8 +9,9 @@ use crate::ty::*;
 
 pub struct FunctionObject {
     pub name: String,
-    pub locals: Vec<VarObject>,
-    pub params: Vec<Object>,
+    pub locals: Vec<Object>,
+    // params are just a list of idxes into self.locals
+    pub params: Vec<usize>,
     pub is_func_def: bool,
     pub body: Vec<Node>,
     pub ty: Type,
@@ -98,7 +99,7 @@ pub struct Parser<'a> {
     source: &'a str,
     pub globals: Vec<Object>,
     scopes: Vec<Scopes>,
-    locals: Cell<Vec<VarObject>>,
+    locals: Cell<Vec<Object>>,
     tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
     current_fn_return_ty: Type,
     str_literal_counter: usize,
@@ -442,23 +443,16 @@ impl Parser<'_> {
         obj
     }
 
-    fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<Object> {
-        let mut locals: Vec<Object> = Vec::new();
-        let mut fn_locals = Vec::new();
+    fn create_param_local_vars(&mut self, param_types: &Vec<FuncParamType>) -> Vec<usize> {
+        let mut locals_idxes: Vec<usize> = Vec::new();
+        let mut locals = self.locals.take();
         for ty in param_types {
+            let idx = locals.len();
             locals.push(self.new_variable(&ty.name, ty.ty.clone(), false));
-            // Copy into function locals, dont use new_variable because we dont' want to duplicate varscope
-            let obj = VarObject {
-                name: ty.name.clone(),
-                ty: ty.ty.clone(),
-                offset: 0.into(),
-                init_data: String::new(),
-                is_local: true,
-            };
-            fn_locals.push(obj);
+            locals_idxes.push(idx);
         }
-        self.locals.set(fn_locals);
-        locals
+        self.locals.set(locals);
+        locals_idxes
     }
 
     fn function(&mut self, base_ty: Type) -> Object {
@@ -674,23 +668,20 @@ impl Parser<'_> {
             }
 
             let var = self.new_variable(&name, ty.clone(), false);
-            let mut locals = self.locals.take();
-            // duplicate for now
-            locals.push(VarObject {
-                name,
-                ty,
-                offset: 0.into(),
-                init_data: String::new(),
-                is_local: true,
-            });
-            self.locals.set(locals);
+            let idx = self.locals.get_mut().len();
+            let ty = var.ty().clone();
+            self.locals.get_mut().push(var);
 
             if !self.next_token_equals("=") {
                 continue;
             }
             self.skip("=");
 
-            let lhs = Node::Variable(Variable { var });
+            let lhs = Node::Variable(Variable {
+                idx,
+                is_local: true,
+                ty,
+            });
             let rhs = self.assign();
             let node = Node::Assign(BinaryNode {
                 ty: Type::NoType,
@@ -1129,13 +1120,15 @@ impl Parser<'_> {
                 return self.function_call();
             }
 
-            let Some(obj) = self.find_var() else {
+            let Some((idx, is_global, ty)) = self.find_var() else {
                 eprintln!("Unknown variable");
                 panic!();
             };
             self.tokens.get_mut().next(); // skip var
             return Node::Variable(Variable {
-                var: Object::VarObject(obj),
+                idx,
+                is_local: !is_global,
+                ty,
             });
         }
 
@@ -1147,17 +1140,15 @@ impl Parser<'_> {
             let ty = Type::array_of(Type::char_type(), tok.len);
             let mut var = self.new_variable(&name, ty.clone(), true);
             var.as_var_object_mut().init_data = tok.string_literal.unwrap();
+            let idx = self.globals.len();
             self.globals.push(var);
-            // create a copy for now
-            let obj = Object::VarObject(VarObject {
-                name: name.to_string(),
-                ty,
-                offset: 0.into(),
-                init_data: String::new(), // initdata not needed
-                is_local: false,
-            });
+
             self.tokens.get_mut().next(); // skip str literal
-            return Node::Variable(Variable { var: obj });
+            return Node::Variable(Variable {
+                idx,
+                is_local: false,
+                ty,
+            });
         }
 
         if self.next_token_kind_is(TokenKind::Numeric) {
@@ -1250,7 +1241,8 @@ impl Parser<'_> {
         self.abstract_declarator(&mut t)
     }
 
-    fn find_var(&mut self) -> Option<VarObject> {
+    // returns the idx of the variable and whether its global
+    fn find_var(&mut self) -> Option<(usize, bool, Type)> {
         let token = self.peek().unwrap();
         let text = self.text(&token);
         if let Some(Scope::Object {
@@ -1261,13 +1253,13 @@ impl Parser<'_> {
         {
             if *is_global {
                 if let Object::VarObject(vo) = &self.globals[*idx] {
-                    return Some(vo.clone());
+                    return Some((*idx, true, vo.ty.clone()));
                 }
             } else {
                 let locals = self.locals.take();
-                let var = locals[*idx].clone();
+                let ty = locals[*idx].ty().clone();
                 self.locals.set(locals);
-                return Some(var);
+                return Some((*idx, false, ty));
             }
         }
         None

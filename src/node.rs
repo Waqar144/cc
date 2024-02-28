@@ -8,7 +8,9 @@ pub struct Block {
 }
 
 pub struct Variable {
-    pub var: Object,
+    pub idx: usize,
+    pub is_local: bool,
+    pub ty: Type,
 }
 
 pub struct StmtExpr {
@@ -262,7 +264,7 @@ impl Node {
     pub fn ty(&self) -> &Type {
         match self {
             Node::Block(_) => &Type::NoType,
-            Node::Variable(v) => v.var.ty(),
+            Node::Variable(v) => &v.ty,
             Node::StmtExpr(se) => &se.ty,
             Node::Numeric(n) => &n.ty,
             Node::Cast(c) => &c.ty,

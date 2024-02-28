@@ -675,6 +675,7 @@ impl Parser<'_> {
             if !first {
                 self.skip(",");
             }
+            first = false;
 
             let mut base_ty = base_ty.clone();
             let (ty, name) = self.declarator(&mut base_ty);

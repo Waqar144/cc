@@ -69,8 +69,9 @@ fn read_escaped_char(source: &str) -> (char, usize) {
     return (num, 1);
 }
 
-fn read_string_literal(mut source: &str) -> Result<String, &str> {
+fn read_string_literal(mut source: &str) -> Result<(usize, String), &str> {
     let mut string = String::new();
+    let start = source;
     loop {
         let c = source.chars().nth(0).unwrap();
 
@@ -98,7 +99,9 @@ fn read_string_literal(mut source: &str) -> Result<String, &str> {
         source = &source[1..];
     }
 
-    Ok(string)
+    let count = start.len() - source.len();
+
+    Ok((count, string))
 }
 
 pub fn tokenize(source: &str) -> Vec<Token> {
@@ -171,12 +174,12 @@ pub fn tokenize(source: &str) -> Vec<Token> {
         if c == '"' {
             let start = offset;
             let string_literal_start = &span[1..]; // skip "
-            let string = read_string_literal(string_literal_start)
+            let (read_chars, string) = read_string_literal(string_literal_start)
                 .map_or_else(|err| exit_with_error(err, line, source, offset), |ok| ok);
             let len = string.len() + 2; // 2 because there are 2 quote marks
-            offset += len;
+            offset += read_chars + 2;
             tokens.push(Token::string_literal(start, len, line, string));
-            span = &span[len..];
+            span = &span[read_chars + 2..]; // 2 because of quote marks
             continue;
         }
 
@@ -265,6 +268,27 @@ fn test_tokenize() {
         Token { start: 84, len: 1, val: None, line_no: 4, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 86, len: 1, val: None, line_no: 5, string_literal: None, kind: TokenKind::Reserved },
         Token { start: 0, len: 0, val: None, line_no: 6, string_literal: None, kind: TokenKind::TOKEOF }
+    ];
+
+    assert_eq!(toks.len(), expected.len());
+    for (left, right) in toks.iter().zip(expected.iter()) {
+        assert_eq!(left, right);
+    }
+}
+
+#[test]
+fn test_str_literal_with_newline() {
+    use crate::token::TokenKind;
+    let src = r#"
+    "OK\n";
+"#;
+    let toks = tokenize(src);
+
+    #[rustfmt::skip]
+    let expected = vec![
+        Token { start: 5, len: 5, val: None, line_no: 1, string_literal: Some("OK\n".into()), kind: TokenKind::StringLiteral },
+        Token { start: 11, len: 1, val: None, line_no: 1, string_literal: None, kind: TokenKind::Reserved},
+        Token { start: 0, len: 0, val: None, line_no: 2, string_literal: None, kind: TokenKind::TOKEOF },
     ];
 
     assert_eq!(toks.len(), expected.len());

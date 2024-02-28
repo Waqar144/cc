@@ -19,6 +19,22 @@ struct CodeGenerator<'a> {
     depth: usize,
 }
 
+enum TypeId {
+    I8 = 0,
+    I16 = 1,
+    I32 = 2,
+    I64 = 3,
+}
+
+fn get_type_id_for_type(ty: &Type) -> TypeId {
+    match ty {
+        Type::Char { .. } => TypeId::I8,
+        Type::Short { .. } => TypeId::I16,
+        Type::Int { .. } => TypeId::I32,
+        _ => TypeId::I64,
+    }
+}
+
 impl CodeGenerator<'_> {
     fn gen_data(&mut self) {
         for global in self.program.iter() {
@@ -60,6 +76,31 @@ impl CodeGenerator<'_> {
         let c = self.counter;
         self.counter += 1;
         c
+    }
+
+    fn cast(&mut self, from: &Type, to: &Type) {
+        let from = get_type_id_for_type(from);
+        let to = get_type_id_for_type(to);
+        match (from, to) {
+            // TODO
+            // (TypeId::I8, TypeId::I8) => todo!(),
+            // (TypeId::I8, TypeId::I16) => todo!(),
+            // (TypeId::I8, TypeId::I32) => todo!(),
+            (TypeId::I8, TypeId::I64) => self.emit("movsxd %eax, %rax"),
+            (TypeId::I16, TypeId::I8) => self.emit("movsbl %al, %eax"),
+            // (TypeId::I16, TypeId::I16) => todo!(),
+            // (TypeId::I16, TypeId::I32) => todo!(),
+            (TypeId::I16, TypeId::I64) => self.emit("movsxd %eax, %rax"),
+            (TypeId::I32, TypeId::I8) => self.emit("movsbl %al, %eax"),
+            (TypeId::I32, TypeId::I16) => self.emit("movswl %ax, %eax"),
+            // (TypeId::I32, TypeId::I32) => todo!(),
+            (TypeId::I32, TypeId::I64) => self.emit("movsxd %eax, %rax"),
+            (TypeId::I64, TypeId::I8) => self.emit("movsbl %al, %eax"),
+            (TypeId::I64, TypeId::I16) => self.emit("movswl %ax, %eax"),
+            // (TypeId::I64, TypeId::I32) => todo!(),
+            // (TypeId::I64, TypeId::I64) => todo!(),
+            _ => (),
+        }
     }
 
     fn load(&mut self, ty: &Type) {
@@ -138,6 +179,7 @@ impl CodeGenerator<'_> {
     }
 
     fn gen_expr(&mut self, node: &Node) {
+        let mut handled = true;
         match node {
             Node::Numeric(num) => self.emit(&format!("  mov ${}, %rax", num.val)),
             Node::Neg(n) => {
@@ -183,9 +225,13 @@ impl CodeGenerator<'_> {
             }
             Node::Cast(c) => {
                 self.gen_expr(&*c.lhs);
-                // TODO cast
+                self.cast(c.lhs.ty(), &c.ty);
             }
-            _ => (),
+            _ => handled = false,
+        }
+
+        if handled {
+            return;
         }
 
         let mut di = "";

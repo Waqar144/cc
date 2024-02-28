@@ -710,7 +710,7 @@ impl Parser<'_> {
 
     fn assign(&mut self) -> Node {
         let mut node = self.equality();
-        if self.next_token_equals("=") {
+        if self.consume("=") {
             node = Node::Assign(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(node),

@@ -212,6 +212,8 @@ impl Node {
                 n.ty = ty;
             }
             Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => {
+                n.lhs.add_type();
+                n.rhs.add_type();
                 Self::usual_arithmetic_conversion(&mut *n.lhs, &mut *n.rhs);
                 n.ty = n.lhs.ty().clone();
             }

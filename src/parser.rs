@@ -173,7 +173,7 @@ impl Parser<'_> {
     fn find_typedef(&mut self) -> Option<Type> {
         if self.next_token_kind_is(TokenKind::Identifier) {
             let name = self.next_token_text().to_string();
-            return self.find_typedef_scope(&name).and_then(|ts| {
+            return self.find_var_scope(&name).and_then(|ts| {
                 if let Scope::TypeDef { typedef, .. } = ts {
                     return Some(typedef.clone());
                 }
@@ -319,7 +319,7 @@ impl Parser<'_> {
             OTHER = 1 << 10,
         }
         let mut counter: usize = 0;
-        let mut ty = Type::NoType;
+        let mut ty = Type::int_type();
 
         while let Some(token) = self.peek() {
             if self.consume("typedef") {
@@ -332,8 +332,12 @@ impl Parser<'_> {
             }
 
             if let Some(ty2) = self.find_typedef() {
+                if counter > 0 {
+                    break;
+                }
                 ty = ty2;
                 self.tokens.get_mut().next(); // advance
+                counter += CTypes::OTHER as usize;
                 continue;
             }
 
@@ -344,12 +348,18 @@ impl Parser<'_> {
                 "int" => CTypes::INT as usize,
                 "long" => CTypes::LONG as usize,
                 "struct" => {
+                    if counter > 0 {
+                        break;
+                    }
                     self.tokens.get_mut().next(); // skip "struct"
                     ty = self.struct_decl();
                     counter += CTypes::OTHER as usize;
                     continue;
                 }
                 "union" => {
+                    if counter > 0 {
+                        break;
+                    }
                     self.tokens.get_mut().next(); // skip "union"
                     ty = self.union_decl();
                     counter += CTypes::OTHER as usize;
@@ -1220,16 +1230,7 @@ impl Parser<'_> {
                     if var_name == name {
                         return Some(varscope);
                     }
-                }
-            }
-        }
-        None
-    }
-
-    fn find_typedef_scope(&self, var_name: &str) -> Option<&Scope> {
-        for scope in self.scopes.iter().rev() {
-            for varscope in scope.var_scopes.iter().rev() {
-                if let Scope::TypeDef { name, .. } = varscope {
+                } else if let Scope::TypeDef { name, .. } = varscope {
                     if var_name == name {
                         return Some(varscope);
                     }
@@ -1371,7 +1372,8 @@ impl Parser<'_> {
         }
 
         if !self.next_token_kind_is(TokenKind::Identifier) {
-            eprintln!("Expected an identifier!");
+            eprintln!("Expected an identifier! got '{}'", self.next_token_text());
+            panic!();
         }
         let name_token = self.peek().unwrap();
         let name = self.text(&name_token).to_string();

@@ -485,9 +485,7 @@ impl Parser<'_> {
 
         if let Type::Func(func) = ty {
             let params = self.create_param_local_vars(&func.params);
-            if self.consume("{") {
-                self.tokens.get_mut().next();
-            }
+            self.consume("{");
 
             self.current_fn_return_ty = *func.return_type.clone();
 

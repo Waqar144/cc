@@ -339,15 +339,15 @@ impl Parser<'_> {
                 "int" => CTypes::INT as usize,
                 "long" => CTypes::LONG as usize,
                 "struct" => {
+                    self.tokens.get_mut().next(); // skip "struct"
                     ty = self.struct_decl();
                     counter += CTypes::OTHER as usize;
-                    self.tokens.get_mut().next(); // advance
                     continue;
                 }
                 "union" => {
+                    self.tokens.get_mut().next(); // skip "union"
                     ty = self.union_decl();
                     counter += CTypes::OTHER as usize;
-                    self.tokens.get_mut().next(); // advance
                     continue;
                 }
                 _ => {

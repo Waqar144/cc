@@ -135,7 +135,7 @@ impl Node {
         if let Some(base) = t1.base_ty() {
             return Type::pointer_to(*base.clone());
         }
-        if t1.size() == 8 && t2.size() == 8 {
+        if t1.size() == 8 || t2.size() == 8 {
             return Type::long_type();
         }
         return Type::int_type();
@@ -206,6 +206,7 @@ impl Node {
                 d.ty = *d.lhs.ty().base_ty().unwrap().clone();
             }
             Node::Neg(n) => {
+                n.lhs.add_type();
                 let ty = Self::common_type(&Type::int_type(), n.lhs.ty());
                 Self::cast_into(&mut *n.lhs, ty.clone());
                 n.ty = ty;

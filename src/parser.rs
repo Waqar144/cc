@@ -153,7 +153,7 @@ impl Parser<'_> {
     fn skip(&mut self, s: &str) {
         if !self.next_token_equals(s) {
             eprintln!("Expected {s}");
-            return;
+            panic!();
         }
         self.tokens.get_mut().next();
     }
@@ -848,7 +848,6 @@ impl Parser<'_> {
         let toks = self.tokens.get_mut().clone();
         if self.consume("(") && self.next_token_is_typename() {
             let t = self.typename();
-            self.consume(")");
             self.skip(")");
 
             let mut lhs = self.cast();

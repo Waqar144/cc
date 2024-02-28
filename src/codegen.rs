@@ -2,7 +2,7 @@ use std::{cell::Cell, io::Write};
 
 use crate::{
     node::Node,
-    parser::{FunctionObject, Object, VarObject},
+    parser::{FunctionObject, Object},
     ty::Type,
 };
 

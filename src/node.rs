@@ -1,62 +1,74 @@
 use crate::token::Token;
 use crate::ty::*;
 
+#[derive(Debug)]
 pub struct Block {
     pub token: Token,
     pub block_body: Vec<Node>,
 }
 
+#[derive(Debug)]
 pub struct Variable {
     pub idx: usize,
     pub is_local: bool,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct StmtExpr {
     pub block_body: Vec<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Cast {
     pub lhs: Box<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Numeric {
     pub val: usize,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct AddressOf {
     pub lhs: Box<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Dereference {
     pub lhs: Box<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Neg {
     pub lhs: Box<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct BinaryNode {
     pub ty: Type,
     pub lhs: Box<Node>,
     pub rhs: Box<Node>,
 }
 
+#[derive(Debug)]
 pub struct ExprStmt {
     pub lhs: Box<Node>,
 }
 
+#[derive(Debug)]
 pub struct While {
     pub cond: Box<Node>,
     pub then: Box<Node>,
 }
 
+#[derive(Debug)]
 pub struct For {
     pub init: Box<Node>,
     pub cond: Option<Box<Node>>,
@@ -64,27 +76,32 @@ pub struct For {
     pub then: Box<Node>,
 }
 
+#[derive(Debug)]
 pub struct If {
     pub cond: Box<Node>,
     pub then: Box<Node>,
     pub els: Option<Box<Node>>,
 }
 
+#[derive(Debug)]
 pub struct Return {
     pub lhs: Box<Node>,
 }
 
+#[derive(Debug)]
 pub struct StructMembr {
     pub lhs: Box<Node>,
     pub member: StructMember,
 }
 
+#[derive(Debug)]
 pub struct FunctionCall {
     pub name: String,
     pub args: Vec<Node>,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub enum Node {
     Block(Block),
     Variable(Variable),

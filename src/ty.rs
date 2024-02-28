@@ -189,17 +189,8 @@ impl Type {
 
     pub fn base_ty(&self) -> Option<&Box<Type>> {
         match self {
-            Type::Void { .. } => None,
-            Type::Char { .. } => None,
-            Type::Short { .. } => None,
-            Type::Int { .. } => None,
-            Type::Long { .. } => None,
-            Type::Struct { .. } => None,
-            Type::Union { .. } => None,
-            Type::Func(_) => None,
-            Type::Ptr { base, .. } => Some(base),
-            Type::Array { base, .. } => Some(base),
-            Type::NoType => None,
+            Type::Ptr { base, .. } | Type::Array { base, .. } => Some(base),
+            _ => None,
         }
     }
 

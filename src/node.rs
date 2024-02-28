@@ -236,6 +236,8 @@ impl Node {
                 n.ty = n.lhs.ty().clone();
             }
             Node::LessThan(n) | Node::LessThanEq(n) | Node::Eq(n) | Node::NotEq(n) => {
+                n.lhs.add_type();
+                n.rhs.add_type();
                 Self::usual_arithmetic_conversion(&mut *n.lhs, &mut *n.rhs);
                 n.ty = Type::int_type();
             }

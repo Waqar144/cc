@@ -1001,7 +1001,6 @@ impl Parser<'_> {
 
         match left.ty() {
             Type::Struct { members, .. } | Type::Union { members, .. } => {
-                self.tokens.get_mut().next();
                 let member = Self::get_struct_member(members, self.next_token_text());
                 return Node::StructMember(StructMembr {
                     lhs: Box::new(left),
@@ -1032,6 +1031,7 @@ impl Parser<'_> {
 
             if self.consume(".") {
                 node = self.struct_ref(node);
+                self.tokens.get_mut().next();
                 continue;
             }
 
@@ -1042,6 +1042,7 @@ impl Parser<'_> {
                     ty: Type::NoType,
                 });
                 node = self.struct_ref(node);
+                self.tokens.get_mut().next();
                 continue;
             }
 

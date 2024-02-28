@@ -1169,7 +1169,7 @@ impl Parser<'_> {
         }
 
         eprintln!("Invalid stmt");
-        Node::Invalid
+        panic!();
     }
 
     fn function_call(&mut self) -> Node {

@@ -170,8 +170,11 @@ impl Type {
         }
     }
 
-    pub fn is_int(&self) -> bool {
-        matches!(self, Self::Int { .. })
+    pub fn is_number(&self) -> bool {
+        matches!(
+            self,
+            Self::Int { .. } | Self::Char { .. } | Self::Short { .. } | Self::Long { .. }
+        )
     }
 
     pub fn is_ptr(&self) -> bool {

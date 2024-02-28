@@ -894,7 +894,7 @@ impl Parser<'_> {
         left.add_type();
         right.add_type();
 
-        if left.ty().is_int() && right.ty().is_int() {
+        if left.ty().is_number() && right.ty().is_number() {
             return Node::Add(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(left),
@@ -932,7 +932,7 @@ impl Parser<'_> {
         left.add_type();
         right.add_type();
 
-        if left.ty().is_int() && right.ty().is_int() {
+        if left.ty().is_number() && right.ty().is_number() {
             return Node::Sub(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(left),
@@ -940,7 +940,7 @@ impl Parser<'_> {
             });
         }
 
-        if left.ty().is_ptr() && right.ty().is_int() {
+        if left.ty().is_ptr() && right.ty().is_number() {
             right = Node::Mul(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(right),

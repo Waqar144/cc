@@ -153,7 +153,7 @@ impl Parser<'_> {
 
     fn skip(&mut self, s: &str) {
         if !self.next_token_equals(s) {
-            eprintln!("Expected {s}");
+            eprintln!("Expected {s}, got '{}'", self.next_token_text());
             panic!();
         }
         self.tokens.get_mut().next();
@@ -1017,6 +1017,7 @@ impl Parser<'_> {
         loop {
             if self.consume("[") {
                 let idx_node = self.expr();
+                self.skip("]");
                 node = Node::Dereference(Dereference {
                     lhs: Box::new(self.new_add(node, idx_node)),
                     ty: Type::NoType,
@@ -1225,12 +1226,17 @@ impl Parser<'_> {
         }
 
         if self.consume("(") {
+            let tokens_copy = self.tokens.get_mut().clone();
             let mut dummy = Type::void_type();
             self.abstract_declarator(&mut dummy);
             self.skip(")");
             let mut ty = self.type_suffix(ty.clone());
-            self.tokens.get_mut().next();
-            return self.abstract_declarator(&mut ty);
+            // save advanced position
+            let pos = self.tokens.get_mut().clone();
+            self.tokens.set(tokens_copy); // reset
+            let ty = self.abstract_declarator(&mut ty);
+            self.tokens.set(pos); // restore
+            return ty;
         }
 
         self.type_suffix(ty.clone())

@@ -375,6 +375,9 @@ impl CodeGenerator<'_> {
             self.emit(&format!("  .text"));
             self.emit(&format!("{}:", f.name));
 
+            // prologue
+            self.emit("  push %rbp");
+            self.emit("  mov %rsp, %rbp");
             if stack_size > 0 {
                 self.emit(&format!("  sub ${}, %rsp", stack_size));
             }
@@ -423,10 +426,6 @@ impl CodeGenerator<'_> {
             for node in f.body.iter() {
                 self.gen_stmt(node);
             }
-
-            // prologue
-            self.emit("  push %rbp");
-            self.emit("  mov %rsp, %rbp");
 
             // epilogue
             self.emit(&format!(".L.return.{}:", f.name));

@@ -25,9 +25,8 @@ fn read_escaped_char(source: &str) -> (char, usize) {
 
     // octal
     if source.starts_with(|c| is_octal_char(c)) {
-        let c = source.chars().nth(0).unwrap();
-        let mut num = c.to_digit(8).unwrap();
-        let mut count = 1;
+        let mut num = 0;
+        let mut count = 0;
         for c in source.chars() {
             if !is_octal_char(c) || count >= 3 {
                 break;
@@ -43,7 +42,7 @@ fn read_escaped_char(source: &str) -> (char, usize) {
     if source.starts_with('x') {
         source = &source[1..]; // skip x
         let mut num: u32 = 0;
-        let count = 1;
+        let count = 0;
         for c in source.chars() {
             if !c.is_ascii_hexdigit() || count >= 2 {
                 break;

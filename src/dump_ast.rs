@@ -1,5 +1,6 @@
 use crate::{debug::node_name, node::Node, parser::Object};
 
+#[allow(dead_code)]
 pub fn dump_ast(program: &Vec<Object>) {
     for global in program {
         let Object::FunctionObject(f) = global else {

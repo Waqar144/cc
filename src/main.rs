@@ -55,8 +55,8 @@ fn main() {
     //     println!("{g:?}");
     // }
 
-    crate::dump_ast::dump_ast(&parser.globals);
-    println!("\n----\n");
+    // crate::dump_ast::dump_ast(&parser.globals);
+    // println!("\n----\n");
 
     codegen::generate(codegen_out.as_mut(), &parser.globals);
 }

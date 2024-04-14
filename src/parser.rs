@@ -1096,7 +1096,7 @@ impl Parser<'_> {
         if left.ty().base_ty().is_some() && right.ty().base_ty().is_some() {
             let size = left.ty().base_ty().unwrap().size();
             let node = Node::Sub(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::int_type(),
                 lhs: Box::new(left),
                 rhs: Box::new(right),
             });

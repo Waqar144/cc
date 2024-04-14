@@ -579,13 +579,13 @@ impl Parser<'_> {
             self.current_fn_return_ty = *func.return_type.clone();
             self.current_fn = Some(function.as_function_object());
 
-            let body = self.compound_stmt();
+            let body = self.compound_stmt().as_block().unwrap();
 
             self.leave_scope();
             let mut f = self.current_fn.take().unwrap();
             f.params = params;
             f.is_func_def = true;
-            f.body = vec![body];
+            f.body = body.block_body;
             f.locals = self.locals.take();
             return Object::FunctionObject(f);
         }

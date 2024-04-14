@@ -178,6 +178,10 @@ impl Node {
     }
 
     pub fn add_type(&mut self) {
+        if self.ty().has_type() {
+            return;
+        }
+
         match self {
             Node::Block(block) => {
                 for n in block.block_body.iter_mut() {
@@ -212,8 +216,8 @@ impl Node {
             }
             Node::Dereference(d) => {
                 d.lhs.add_type();
-                if !d.lhs.ty().is_ptr() {
-                    eprintln!("Invalid Dereference!");
+                if d.lhs.ty().base_ty().is_none() {
+                    eprintln!("Invalid Dereference! {:?}", d.lhs);
                     panic!();
                 }
 
@@ -301,16 +305,16 @@ impl Node {
             Node::Invalid => panic!(),
             Node::AddressOf(a) => &a.ty,
             Node::Dereference(d) => &d.ty,
-            Node::Neg(n) => n.lhs.ty(),
+            Node::Neg(n) => &n.ty,
             Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => &n.ty,
             Node::LessThan(n) | Node::LessThanEq(n) | Node::Eq(n) | Node::NotEq(n) => &n.ty,
-            Node::Assign(a) => a.lhs.ty(),
+            Node::Assign(a) => &a.ty,
             Node::ExprStmt(_) => &Type::NoType,
-            Node::Comma(c) => c.rhs.ty(),
+            Node::Comma(c) => &c.ty,
             Node::While(_) => &Type::NoType,
             Node::For(_) => &Type::NoType,
             Node::If(_) => &Type::NoType,
-            Node::Return(r) => r.lhs.ty(),
+            Node::Return(_) => &Type::NoType,
             Node::StructMember(s) => &s.member.ty,
             Node::FunctionCall(f) => &f.ty,
         }

@@ -712,8 +712,10 @@ impl Parser<'_> {
 
         if self.next_token_equals("return") {
             self.skip("return");
+            let mut lhs = self.expr();
+            lhs.add_type();
             let node = Node::Cast(Cast {
-                lhs: Box::new(self.expr()),
+                lhs: Box::new(lhs),
                 ty: self.current_fn_return_ty.clone(),
             });
             self.skip(";");

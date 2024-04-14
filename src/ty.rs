@@ -170,6 +170,13 @@ impl Type {
         }
     }
 
+    pub fn has_type(&self) -> bool {
+        match self {
+            Type::NoType => false,
+            _ => true,
+        }
+    }
+
     pub fn is_number(&self) -> bool {
         matches!(
             self,

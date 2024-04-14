@@ -166,7 +166,7 @@ impl Node {
             node,
             Node::Cast(Cast {
                 lhs: Box::new(old_value), // old value moved here
-                ty: ty.clone(),
+                ty,
             }),
         );
     }

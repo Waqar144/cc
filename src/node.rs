@@ -315,4 +315,12 @@ impl Node {
             Node::FunctionCall(f) => &f.ty,
         }
     }
+
+    pub fn as_block(self) -> Option<Block> {
+        if let Self::Block(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }

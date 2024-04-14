@@ -1022,12 +1022,12 @@ impl Parser<'_> {
             });
         }
 
-        if left.ty().is_ptr() && right.ty().is_ptr() {
+        if left.ty().base_ty().is_some() && right.ty().base_ty().is_some() {
             eprintln!("new_add: Invalid operands");
             panic!();
         }
 
-        if !left.ty().is_ptr() && right.ty().is_ptr() {
+        if left.ty().base_ty().is_none() && right.ty().base_ty().is_some() {
             std::mem::swap(&mut left, &mut right);
         }
 
@@ -1063,7 +1063,7 @@ impl Parser<'_> {
             });
         }
 
-        if left.ty().is_ptr() && right.ty().is_number() {
+        if left.ty().base_ty().is_some() && right.ty().is_number() {
             right = Node::Mul(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(right),
@@ -1082,10 +1082,10 @@ impl Parser<'_> {
             });
         }
 
-        if left.ty().is_ptr() && right.ty().is_ptr() {
+        if left.ty().base_ty().is_some() && right.ty().base_ty().is_some() {
             let size = left.ty().base_ty().unwrap().size();
             let node = Node::Sub(BinaryNode {
-                ty: Type::int_type(),
+                ty: Type::NoType,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
             });

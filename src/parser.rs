@@ -66,7 +66,7 @@ pub struct FunctionObject {
     pub ty: Type,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarObject {
     pub name: String,
     pub ty: Type,
@@ -75,6 +75,7 @@ pub struct VarObject {
     pub is_local: bool,
 }
 
+#[derive(Debug)]
 pub enum Object {
     FunctionObject(FunctionObject),
     VarObject(VarObject),

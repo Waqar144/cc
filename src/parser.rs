@@ -82,6 +82,14 @@ pub enum Object {
 }
 
 impl Object {
+    fn name(&self) -> &str {
+        match self {
+            Object::FunctionObject(f) => &f.name,
+            Object::VarObject(v) => &v.name,
+            Object::Invalid => panic!(),
+        }
+    }
+
     fn as_var_object_mut(&mut self) -> &mut VarObject {
         if let Self::VarObject(v) = self {
             v
@@ -1277,7 +1285,8 @@ impl Parser<'_> {
             let v = self.str_literal_counter;
             self.str_literal_counter += 1;
             let name = format!(".L..{}", v);
-            let ty = Type::array_of(Type::char_type(), tok.len);
+            let quotes_len = 2;
+            let ty = Type::array_of(Type::char_type(), tok.len - quotes_len + 1);
             let mut var = self.new_variable(&name, ty.clone(), true);
             var.as_var_object_mut().init_data = tok.string_literal.unwrap();
             let idx = self.globals.len();
@@ -1350,7 +1359,7 @@ impl Parser<'_> {
     fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {
         for scope in self.scopes.iter().rev() {
             for varscope in scope.var_scopes.iter().rev() {
-                if let Scope::Object { name, .. } = varscope {
+                if let Scope::Object { name, idx, .. } = varscope {
                     if var_name == name {
                         return Some(varscope);
                     }

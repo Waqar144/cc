@@ -1,4 +1,6 @@
 mod codegen;
+mod debug;
+mod dump_ast;
 mod lexer;
 mod node;
 mod parser;
@@ -48,6 +50,13 @@ fn main() {
 
     let mut parser = parser::Parser::new(&contents, &toks);
     parser.parse();
+
+    // for g in &parser.globals {
+    //     println!("{g:?}");
+    // }
+
+    crate::dump_ast::dump_ast(&parser.globals);
+    println!("\n----\n");
 
     codegen::generate(codegen_out.as_mut(), &parser.globals);
 }

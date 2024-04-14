@@ -7,6 +7,55 @@ use crate::node::*;
 use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+
+        // Find and cut the rest of the path
+        match &name[..name.len() - 3].rfind(':') {
+            Some(pos) => &name[pos + 1..name.len() - 3],
+            None => &name[..name.len() - 3],
+        }
+    }};
+}
+
+static mut TRACE_DEPTH: usize = 1;
+struct TraceRaii {}
+
+impl TraceRaii {
+    fn new() -> TraceRaii {
+        unsafe {
+            TRACE_DEPTH += 1;
+        };
+        TraceRaii {}
+    }
+}
+
+impl Drop for TraceRaii {
+    fn drop(&mut self) {
+        unsafe {
+            TRACE_DEPTH -= 1;
+        };
+    }
+}
+
+fn trace(s: &str) {
+    return; // disabled TODO: improve this situation
+    unsafe {
+        println!(
+            "\x1b[1;32m{:>depth$} {}\x1b[0m",
+            "==",
+            s,
+            depth = TRACE_DEPTH
+        );
+    }
+}
+
+#[derive(Debug)]
 pub struct FunctionObject {
     pub name: String,
     pub locals: Vec<Object>,
@@ -122,6 +171,7 @@ impl Parser<'_> {
     }
 
     pub fn parse(&mut self) {
+        trace("=>> start parse");
         loop {
             if let Some(tok) = self.peek() {
                 if tok.kind == TokenKind::TOKEOF {
@@ -152,6 +202,7 @@ impl Parser<'_> {
 
             self.parse_global_variables(base_type);
         }
+        trace("=>> end parse");
     }
 
     fn peek(&mut self) -> Option<Token> {
@@ -317,6 +368,8 @@ impl Parser<'_> {
     }
 
     fn declspec(&mut self, var_attr: &mut VarAttr) -> Type {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         enum CTypes {
             VOID = 1 << 0,
             CHAR = 1 << 2,
@@ -492,6 +545,8 @@ impl Parser<'_> {
     }
 
     fn function(&mut self, base_ty: Type) -> Object {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut base_ty = base_ty;
         let (ty, ident) = self.declarator(&mut base_ty);
 
@@ -540,6 +595,8 @@ impl Parser<'_> {
     }
 
     fn compound_stmt(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         self.enter_scope();
         let mut body: Vec<Node> = Vec::new();
         loop {
@@ -579,6 +636,8 @@ impl Parser<'_> {
     }
 
     fn parse_typedef(&mut self, base_ty: Type) {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut first = true;
         while (!self.consume(";")) {
             if !first {
@@ -593,6 +652,8 @@ impl Parser<'_> {
     }
 
     fn stmt(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         if self.next_token_equals("while") {
             self.skip("while");
             self.skip("(");
@@ -671,6 +732,8 @@ impl Parser<'_> {
 
     // expr_stmt = expr? ";"
     fn expr_stmt(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         if self.next_token_equals(";") {
             let tok = self.peek().clone().unwrap();
             self.skip(";");
@@ -692,6 +755,8 @@ impl Parser<'_> {
 
     // declaration = typespec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
     fn declaration(&mut self, base_ty: Type) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut first = true;
         let mut nodes = Vec::new();
         while (!self.next_token_equals(";")) {
@@ -741,6 +806,8 @@ impl Parser<'_> {
     }
 
     fn assign(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.equality();
         if self.consume("=") {
             node = Node::Assign(BinaryNode {
@@ -753,6 +820,8 @@ impl Parser<'_> {
     }
 
     fn equality(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.relational();
         loop {
             if self.next_token_equals("==") {
@@ -780,6 +849,8 @@ impl Parser<'_> {
     }
 
     fn relational(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.add();
         loop {
             if self.next_token_equals("<") {
@@ -827,6 +898,8 @@ impl Parser<'_> {
     }
 
     fn add(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.mul();
         loop {
             if self.next_token_equals("+") {
@@ -849,6 +922,8 @@ impl Parser<'_> {
     }
 
     fn mul(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.cast();
         loop {
             if self.next_token_equals("*") {
@@ -878,6 +953,8 @@ impl Parser<'_> {
 
     // cast = "(" type-name ")" cast | unary
     fn cast(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let toks = self.tokens.get_mut().clone();
         if self.consume("(") && self.next_token_is_typename() {
             let t = self.typename();
@@ -897,6 +974,8 @@ impl Parser<'_> {
     }
 
     fn unary(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         if self.next_token_equals("&") {
             self.tokens.get_mut().next();
             return Node::AddressOf(AddressOf {
@@ -930,6 +1009,8 @@ impl Parser<'_> {
     }
 
     fn new_add(&mut self, mut left: Node, mut right: Node) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         left.add_type();
         right.add_type();
 
@@ -968,10 +1049,13 @@ impl Parser<'_> {
     }
 
     fn new_sub(&mut self, mut left: Node, mut right: Node) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         left.add_type();
         right.add_type();
 
         if left.ty().is_number() && right.ty().is_number() {
+            trace(&format!("{}: {}", function!(), "Sub"));
             return Node::Sub(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(left),
@@ -990,6 +1074,7 @@ impl Parser<'_> {
                 })),
             });
             right.add_type();
+            trace(&format!("{}: {}", function!(), "Sub"));
             return Node::Sub(BinaryNode {
                 ty: left.ty().clone(),
                 lhs: Box::new(left),
@@ -1004,6 +1089,7 @@ impl Parser<'_> {
                 lhs: Box::new(left),
                 rhs: Box::new(right),
             });
+            trace(&format!("{}: {}", function!(), "Div"));
             return Node::Div(BinaryNode {
                 ty: Type::NoType,
                 lhs: Box::new(node),
@@ -1020,6 +1106,8 @@ impl Parser<'_> {
     }
 
     fn get_struct_member(members: &Vec<StructMember>, name: &str) -> StructMember {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), ""));
         for member in members {
             if member.name == name {
                 return member.clone(); // TODO do better, return index into vec?
@@ -1031,6 +1119,8 @@ impl Parser<'_> {
     }
 
     fn struct_ref(&mut self, mut left: Node) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         left.add_type();
 
         match left.ty() {
@@ -1050,6 +1140,8 @@ impl Parser<'_> {
 
     // postfix = primary ("[" expr "]")* | "." ident)*
     fn postfix(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.primary();
 
         loop {
@@ -1086,6 +1178,8 @@ impl Parser<'_> {
     }
 
     fn expr(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut node = self.assign();
         if self.consume(",") {
             node = Node::Comma(BinaryNode {
@@ -1104,6 +1198,8 @@ impl Parser<'_> {
     //         | str
     //         | num
     fn primary(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let tokens_copy = self.tokens.get_mut().clone();
         // GNU Expr Stmt
         if (self.consume("(") && self.consume("{")) {
@@ -1208,6 +1304,8 @@ impl Parser<'_> {
     }
 
     fn function_call(&mut self) -> Node {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let func_ret_ty = {
             let func = self.find_func_var();
             if let None = func {
@@ -1265,6 +1363,8 @@ impl Parser<'_> {
     }
 
     fn abstract_declarator(&mut self, ty: &mut Type) -> Type {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         while self.consume("*") {
             *ty = Type::pointer_to((*ty).clone())
         }
@@ -1287,6 +1387,8 @@ impl Parser<'_> {
     }
 
     fn typename(&mut self) -> Type {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         let mut attr = VarAttr::default();
         let mut t = self.declspec(&mut attr);
         self.abstract_declarator(&mut t)
@@ -1363,6 +1465,8 @@ impl Parser<'_> {
     }
 
     fn is_function(&mut self) -> bool {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         if self.next_token_equals(";") {
             false
         } else {
@@ -1387,6 +1491,8 @@ impl Parser<'_> {
 
     // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) type-suffix
     fn declarator(&mut self, ty: &mut Type) -> (Type, String) {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         while self.consume("*") {
             *ty = Type::pointer_to((*ty).clone())
         }
@@ -1441,6 +1547,8 @@ impl Parser<'_> {
     }
 
     fn type_suffix(&mut self, ty: Type) -> Type {
+        let _t = TraceRaii::new();
+        trace(&format!("{}: {}", function!(), self.next_token_text()));
         if self.next_token_equals("(") {
             self.skip("(");
             self.func_params(ty)

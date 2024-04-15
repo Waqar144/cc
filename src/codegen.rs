@@ -1,4 +1,4 @@
-use crate::debug::node_name;
+use crate::debug::*;
 use std::{cell::Cell, io::Write};
 
 use crate::{
@@ -13,6 +13,7 @@ const ARG_REGS32: [&'static str; 6] = ["%edi", "%esi", "%edx", "%ecx", "%r8d", "
 const ARG_REGS64: [&'static str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
 
 static mut TRACE_DEPTH: usize = 1;
+add_tracing!();
 
 struct CodeGenerator<'a> {
     writer: &'a mut dyn Write,
@@ -21,36 +22,6 @@ struct CodeGenerator<'a> {
     current_fn_name: String,
     depth: usize,
     current_fn: Cell<Option<&'a FunctionObject>>,
-}
-
-struct TraceRaii {}
-
-impl TraceRaii {
-    fn new() -> TraceRaii {
-        unsafe {
-            TRACE_DEPTH += 1;
-        };
-        TraceRaii {}
-    }
-}
-
-impl Drop for TraceRaii {
-    fn drop(&mut self) {
-        unsafe {
-            TRACE_DEPTH -= 1;
-        };
-    }
-}
-
-fn trace(_s: &str) {
-    // unsafe {
-    //     eprintln!(
-    //         "\x1b[1;32m{:>depth$} {}\x1b[0m",
-    //         "==",
-    //         s,
-    //         depth = TRACE_DEPTH
-    //     );
-    // }
 }
 
 enum TypeId {
@@ -72,7 +43,7 @@ fn get_type_id_for_type(ty: &Type) -> TypeId {
 impl CodeGenerator<'_> {
     fn gen_data(&mut self) {
         let _t = TraceRaii::new();
-        trace("gen_data");
+        trace!("gen_data");
         for global in self.program.iter() {
             let Object::VarObject(o) = global else {
                 continue;
@@ -200,7 +171,7 @@ impl CodeGenerator<'_> {
     }
 
     fn gen_address(&mut self, node: &Node) {
-        trace(&format!("gen_address({})", node_name(node)));
+        trace!("gen_address({})", node_name(node));
         let _t = TraceRaii::new();
         match node {
             Node::Variable(v) => {
@@ -236,7 +207,7 @@ impl CodeGenerator<'_> {
     }
 
     fn gen_expr(&mut self, node: &Node) {
-        trace(&format!("gen_expr({})", node_name(node)));
+        trace!("gen_expr({})", node_name(node));
         let _t = TraceRaii::new();
         let mut handled = true;
         match node {
@@ -338,7 +309,7 @@ impl CodeGenerator<'_> {
     }
 
     fn gen_stmt(&mut self, node: &Node) {
-        trace(&format!("gen_stmt({})", node_name(node)));
+        trace!("gen_stmt({})", node_name(node));
         let _t = TraceRaii::new();
         match node {
             Node::For(f) => {
@@ -423,7 +394,7 @@ impl CodeGenerator<'_> {
     }
 
     fn generate(&mut self) {
-        trace("generate");
+        trace!("generate");
         // generate data for globals
         self.gen_data();
 
@@ -490,17 +461,17 @@ impl CodeGenerator<'_> {
             // store a ref to current function
             self.current_fn.set(Some(f));
 
-            trace(&format!(
+            trace!(
                 "BEGIN Iterating function body, body nodes size: {}",
                 f.body.len()
-            ));
+            );
             for node in f.body.iter() {
                 self.gen_stmt(node);
             }
-            trace(&format!(
+            trace!(
                 "END Iterating function body, body nodes size: {}",
                 f.body.len()
-            ));
+            );
 
             // epilogue
             self.emit(&format!(".L.return.{}:", f.name));

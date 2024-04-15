@@ -9,38 +9,7 @@ use crate::token::{Token, TokenKind};
 use crate::ty::*;
 
 static mut TRACE_DEPTH: usize = 1;
-struct TraceRaii {}
-
-impl TraceRaii {
-    fn new() -> TraceRaii {
-        unsafe {
-            TRACE_DEPTH += 1;
-        };
-        TraceRaii {}
-    }
-}
-
-impl Drop for TraceRaii {
-    fn drop(&mut self) {
-        unsafe {
-            TRACE_DEPTH -= 1;
-        };
-    }
-}
-
-macro_rules! trace {
-    ($($arg:tt)*) => {
-        #[cfg(feature = "trace_parser")]
-        unsafe {
-            println!(
-                "\x1b[1;32m{:>depth$} {}\x1b[0m",
-                "==",
-                format_args!($($arg)*),
-                depth = TRACE_DEPTH
-            );
-        }
-    };
-}
+add_tracing!();
 
 #[derive(Debug)]
 pub struct FunctionObject {

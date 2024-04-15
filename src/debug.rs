@@ -1,5 +1,7 @@
 use crate::node::*;
 
+// BEGIN tracing
+
 #[allow(unused_macros)]
 macro_rules! function {
     () => {{
@@ -16,7 +18,49 @@ macro_rules! function {
         }
     }};
 }
+#[allow(unused_imports)]
 pub(crate) use function;
+
+macro_rules! add_tracing {
+    () => {
+        struct TraceRaii {}
+
+        impl TraceRaii {
+            fn new() -> TraceRaii {
+                unsafe {
+                    TRACE_DEPTH += 1;
+                };
+                TraceRaii {}
+            }
+        }
+
+        impl Drop for TraceRaii {
+            fn drop(&mut self) {
+                unsafe {
+                    TRACE_DEPTH -= 1;
+                };
+            }
+        }
+    };
+}
+pub(crate) use add_tracing;
+
+macro_rules! trace {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "tracing")]
+        unsafe {
+            println!(
+                "\x1b[1;32m{:>depth$} {}\x1b[0m",
+                "==",
+                format_args!($($arg)*),
+                depth = TRACE_DEPTH
+            );
+        }
+    };
+}
+pub(crate) use trace;
+
+// END tracing
 
 pub fn node_name(node: &Node) -> &'static str {
     match node {

@@ -59,6 +59,14 @@ impl Object {
             panic!()
         }
     }
+
+    pub fn as_function_object_ref(&self) -> &FunctionObject {
+        if let Self::FunctionObject(v) = &self {
+            v
+        } else {
+            panic!()
+        }
+    }
 }
 
 struct TagScope {
@@ -1253,20 +1261,12 @@ impl Parser<'_> {
     fn function_call(&mut self) -> Node {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
-        let func_ret_ty = {
-            let func = self.find_func_var();
-            if let None = func {
-                eprintln!("Unknown function");
-                panic!();
-            }
-            let func = func.unwrap();
-            if let None = func.ty.as_func() {
-                eprintln!("Not a function");
-                panic!();
-            } else {
-                *func.ty.as_func().unwrap().return_type.clone()
-            }
-        };
+        let idx = self.find_func_var();
+        if let None = idx {
+            eprintln!("Unknown function: {}", self.next_token_text());
+            panic!();
+        }
+        let fn_idx = idx.unwrap();
         let name = self.next_token_text().to_string();
 
         self.tokens.get_mut().next();
@@ -1274,6 +1274,7 @@ impl Parser<'_> {
 
         let mut args: Vec<Node> = Vec::new();
         let mut first = true;
+        let mut param_idx = 0;
         while !self.next_token_equals(")") {
             if !first {
                 self.skip(",");
@@ -1281,14 +1282,28 @@ impl Parser<'_> {
             first = false;
             let mut assign = self.assign();
             assign.add_type();
+
+            let f = self.get_function(fn_idx);
+            let func_params_ty = &f.ty.as_func().unwrap().params;
+
+            if param_idx < func_params_ty.len() {
+                assign = Node::Cast(Cast {
+                    lhs: Box::new(assign),
+                    ty: func_params_ty[param_idx].ty.clone(),
+                });
+            }
+
             args.push(assign);
+            param_idx += 1;
         }
         self.skip(")");
+
+        let f = self.get_function(fn_idx);
 
         Node::FunctionCall(FunctionCall {
             name,
             args,
-            ty: func_ret_ty,
+            ty: *f.ty.as_func().unwrap().return_type.clone(),
         })
     }
 
@@ -1360,7 +1375,7 @@ impl Parser<'_> {
         None
     }
 
-    fn find_func_var(&mut self) -> Option<&FunctionObject> {
+    fn find_func_var(&mut self) -> Option<usize> {
         let token = self.peek().unwrap();
         let text = self.text(&token);
         if let Some(Scope::Object {
@@ -1375,19 +1390,29 @@ impl Parser<'_> {
                     // its recursion?
                     return self.current_fn.as_ref().and_then(|f| {
                         if f.name == *name {
-                            Some(f)
+                            Some(usize::max_value()) // recursion
                         } else {
                             None
                         }
                     });
                 }
 
-                if let Object::FunctionObject(f) = &self.globals[*idx] {
-                    return Some(f);
+                if let Object::FunctionObject(_) = &self.globals[*idx] {
+                    return Some(*idx);
                 }
             }
         }
         None
+    }
+
+    fn get_function(&self, idx: usize) -> &FunctionObject {
+        let f = if idx == usize::max_value() {
+            // recursion
+            self.current_fn.as_ref().unwrap()
+        } else {
+            self.globals[idx].as_function_object_ref()
+        };
+        f
     }
 
     fn is_typename(&mut self) -> bool {

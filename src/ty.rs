@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
 #[derive(Clone, Debug)]
 pub struct FuncParamType {
     pub name: String,
@@ -182,10 +179,6 @@ impl Type {
             self,
             Self::Int { .. } | Self::Char { .. } | Self::Short { .. } | Self::Long { .. }
         )
-    }
-
-    pub fn is_ptr(&self) -> bool {
-        matches!(self, Self::Ptr { .. })
     }
 
     pub fn base_ty(&self) -> Option<&Box<Type>> {

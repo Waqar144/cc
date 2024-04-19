@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
 use std::cell::Cell;
 
 use crate::debug::*;
@@ -39,23 +36,7 @@ pub enum Object {
 }
 
 impl Object {
-    fn name(&self) -> &str {
-        match self {
-            Object::FunctionObject(f) => &f.name,
-            Object::VarObject(v) => &v.name,
-            Object::Invalid => panic!(),
-        }
-    }
-
     fn as_var_object_mut(&mut self) -> &mut VarObject {
-        if let Self::VarObject(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-
-    pub fn as_var_object(&self) -> &VarObject {
         if let Self::VarObject(v) = self {
             v
         } else {
@@ -306,7 +287,6 @@ impl Parser<'_> {
 
     fn union_decl(&mut self) -> Type {
         let mut st = self.struct_or_union_decl(true);
-        let mut offset = 0;
 
         if let Type::Union {
             size,
@@ -316,7 +296,6 @@ impl Parser<'_> {
         {
             // The union is as big as necessary to hold its largest member
             for m in members.iter_mut() {
-                m.offset = 0;
                 if *alignment < m.ty.alignment() {
                     *alignment = m.ty.alignment();
                 }
@@ -346,7 +325,7 @@ impl Parser<'_> {
         let mut counter: usize = 0;
         let mut ty = Type::int_type();
 
-        while let Some(token) = self.peek() {
+        while let Some(_) = self.peek() {
             if self.consume("typedef") {
                 var_attr.is_typedef = true;
                 continue;
@@ -515,7 +494,7 @@ impl Parser<'_> {
         let mut base_ty = base_ty;
         let (ty, ident) = self.declarator(&mut base_ty);
 
-        let mut function = Object::FunctionObject(FunctionObject {
+        let function = Object::FunctionObject(FunctionObject {
             name: ident.clone(),
             locals: Vec::new(),
             params: Vec::new(),
@@ -571,10 +550,10 @@ impl Parser<'_> {
 
             let is_typename = self.is_typename();
 
-            let mut node = if (is_typename) {
+            let mut node = if is_typename {
                 let mut attr = VarAttr::default();
                 let base_ty = self.declspec(&mut attr);
-                if (attr.is_typedef) {
+                if attr.is_typedef {
                     // parse_typedef
                     self.parse_typedef(base_ty);
                     continue;
@@ -604,7 +583,7 @@ impl Parser<'_> {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         let mut first = true;
-        while (!self.consume(";")) {
+        while !self.consume(";") {
             if !first {
                 self.skip(",");
             }
@@ -726,7 +705,7 @@ impl Parser<'_> {
         trace!("{}: {}", function!(), self.next_token_text());
         let mut first = true;
         let mut nodes = Vec::new();
-        while (!self.next_token_equals(";")) {
+        while !self.next_token_equals(";") {
             if !first {
                 self.skip(",");
             }
@@ -734,7 +713,7 @@ impl Parser<'_> {
 
             let mut base_ty = base_ty.clone();
             let (ty, name) = self.declarator(&mut base_ty);
-            if let Type::Void { size, alignment } = ty {
+            if let Type::Void { .. } = ty {
                 eprintln!("unexpected void type"); // TODO proper error reporting
             }
 
@@ -1169,7 +1148,7 @@ impl Parser<'_> {
         trace!("{}: {}", function!(), self.next_token_text());
         let tokens_copy = self.tokens.get_mut().clone();
         // GNU Expr Stmt
-        if (self.consume("(") && self.consume("{")) {
+        if self.consume("(") && self.consume("{") {
             let body = self.compound_stmt();
             let node = Node::StmtExpr(StmtExpr {
                 block_body: vec![body],
@@ -1316,7 +1295,7 @@ impl Parser<'_> {
     fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {
         for scope in self.scopes.iter().rev() {
             for varscope in scope.var_scopes.iter().rev() {
-                if let Scope::Object { name, idx, .. } = varscope {
+                if let Scope::Object { name, .. } = varscope {
                     if var_name == name {
                         return Some(varscope);
                     }
@@ -1366,12 +1345,7 @@ impl Parser<'_> {
     fn find_var(&mut self) -> Option<(usize, bool, Type)> {
         let token = self.peek().unwrap();
         let text = self.text(&token);
-        if let Some(Scope::Object {
-            name,
-            is_global,
-            idx,
-        }) = self.find_var_scope(text)
-        {
+        if let Some(Scope::Object { is_global, idx, .. }) = self.find_var_scope(text) {
             if *is_global {
                 if let Object::VarObject(vo) = &self.globals[*idx] {
                     return Some((*idx, true, vo.ty.clone()));
@@ -1439,7 +1413,7 @@ impl Parser<'_> {
             false
         } else {
             let mut ty = Type::int_type();
-            let (ty, x) = self.declarator(&mut ty);
+            let (ty, _) = self.declarator(&mut ty);
             match ty {
                 Type::Func(_) => true,
                 _ => false,

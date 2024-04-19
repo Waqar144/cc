@@ -325,7 +325,7 @@ impl Parser<'_> {
         let mut counter: usize = 0;
         let mut ty = Type::int_type();
 
-        while let Some(_) = self.peek() {
+        loop {
             if self.consume("typedef") {
                 var_attr.is_typedef = true;
                 continue;

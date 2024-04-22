@@ -85,7 +85,26 @@ impl CodeGenerator<'_> {
         c
     }
 
+    fn cmp_zero(&mut self, ty: &Type) {
+        if ty.is_number() && ty.size() <= 4 {
+            self.emit("  cmp $0, %eax");
+        } else {
+            self.emit("  cmp $0, %rax");
+        }
+    }
+
     fn cast(&mut self, from: &Type, to: &Type) {
+        if matches!(to, Type::Void { .. }) {
+            return;
+        }
+
+        if matches!(to, Type::Bool { .. }) {
+            self.cmp_zero(from);
+            self.emit("  setne %al");
+            self.emit("  movzx %al, %eax");
+            return;
+        }
+
         let from = get_type_id_for_type(from);
         let to = get_type_id_for_type(to);
         match (from, to) {

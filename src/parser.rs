@@ -324,11 +324,12 @@ impl Parser<'_> {
         trace!("{}: {}", function!(), self.next_token_text());
         enum CTypes {
             VOID = 1 << 0,
-            CHAR = 1 << 2,
-            SHORT = 1 << 4,
-            INT = 1 << 6,
-            LONG = 1 << 8,
-            OTHER = 1 << 10,
+            BOOL = 1 << 2,
+            CHAR = 1 << 4,
+            SHORT = 1 << 6,
+            INT = 1 << 8,
+            LONG = 1 << 10,
+            OTHER = 1 << 12,
         }
         let mut counter: usize = 0;
         let mut ty = Type::int_type();
@@ -355,6 +356,7 @@ impl Parser<'_> {
 
             counter += match self.next_token_text() {
                 "void" => CTypes::VOID as usize,
+                "_Bool" => CTypes::BOOL as usize,
                 "char" => CTypes::CHAR as usize,
                 "short" => CTypes::SHORT as usize,
                 "int" => CTypes::INT as usize,
@@ -386,6 +388,10 @@ impl Parser<'_> {
             ty = match counter {
                 x if x == CTypes::VOID as usize => Type::void_type(),
                 x if x == CTypes::CHAR as usize => Type::char_type(),
+                x if x == CTypes::BOOL as usize => Type::Bool {
+                    size: 1,
+                    alignment: 1,
+                },
                 x if x == CTypes::SHORT as usize
                     || x == (CTypes::SHORT as usize) + (CTypes::INT as usize) =>
                 {
@@ -1254,7 +1260,7 @@ impl Parser<'_> {
             return node;
         }
 
-        eprintln!("Invalid stmt");
+        eprintln!("Invalid stmt {}", self.next_token_text());
         panic!();
     }
 
@@ -1418,7 +1424,7 @@ impl Parser<'_> {
     fn is_typename(&mut self) -> bool {
         {
             let type_keywords = [
-                "char", "int", "struct", "union", "long", "short", "void", "typedef",
+                "char", "int", "struct", "union", "long", "short", "void", "typedef", "_Bool",
             ];
 
             let text = self.next_token_text();

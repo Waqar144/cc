@@ -15,7 +15,7 @@ fn is_octal_char(c: char) -> bool {
 fn is_keyword(span: &str) -> bool {
     match span {
         "if" | "else" | "return" | "for" | "while" | "int" | "sizeof" | "struct" | "union"
-        | "long" | "short" | "void" | "char" | "typedef" => true,
+        | "long" | "short" | "void" | "char" | "typedef" | "_Bool" => true,
         _ => false,
     }
 }
@@ -182,7 +182,7 @@ pub fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
-        if c == '+' || c == '-' || c.is_ascii_punctuation() {
+        if (c == '+' || c == '-' || c.is_ascii_punctuation()) && c != '_' {
             span = &span[1..];
             tokens.push(Token::op(offset, 1, line));
             offset += 1;

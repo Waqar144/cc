@@ -23,6 +23,10 @@ pub enum Type {
         size: usize,
         alignment: usize,
     },
+    Bool {
+        size: usize,
+        alignment: usize,
+    },
     Char {
         size: usize,
         alignment: usize,
@@ -138,6 +142,7 @@ impl Type {
     pub fn size(&self) -> usize {
         *match self {
             Type::Void { size, .. } => size,
+            Type::Bool { size, .. } => size,
             Type::Char { size, .. } => size,
             Type::Short { size, .. } => size,
             Type::Int { size, .. } => size,
@@ -154,6 +159,7 @@ impl Type {
     pub fn alignment(&self) -> usize {
         *match self {
             Type::Void { alignment, .. } => alignment,
+            Type::Bool { alignment, .. } => alignment,
             Type::Char { alignment, .. } => alignment,
             Type::Short { alignment, .. } => alignment,
             Type::Int { alignment, .. } => alignment,
@@ -177,7 +183,11 @@ impl Type {
     pub fn is_number(&self) -> bool {
         matches!(
             self,
-            Self::Int { .. } | Self::Char { .. } | Self::Short { .. } | Self::Long { .. }
+            Self::Int { .. }
+                | Self::Char { .. }
+                | Self::Short { .. }
+                | Self::Long { .. }
+                | Self::Bool { .. }
         )
     }
 

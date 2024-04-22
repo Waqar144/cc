@@ -20,6 +20,10 @@ fn is_keyword(span: &str) -> bool {
     }
 }
 
+fn is_punct(c: char) -> bool {
+    (c == '+' || c == '-' || c.is_ascii_punctuation()) && c != '_' && c != '\''
+}
+
 fn read_escaped_char(source: &str) -> (char, usize) {
     let mut source = source;
 
@@ -182,7 +186,8 @@ pub fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
-        if (c == '+' || c == '-' || c.is_ascii_punctuation()) && c != '_' {
+        if is_punct(c) {
+            println!("PUNCT: {c}");
             span = &span[1..];
             tokens.push(Token::op(offset, 1, line));
             offset += 1;

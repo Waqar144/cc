@@ -110,7 +110,26 @@ impl Type {
     }
 
     pub fn array_of(base_ty: Type, len: usize) -> Type {
-        let (size, alignment) = match &base_ty {
+        let (size, alignment) = base_ty.size_and_alignment();
+
+        Type::Array {
+            size: size * len,
+            alignment,
+            array_len: len,
+            base: Box::new(base_ty),
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size_and_alignment().0
+    }
+
+    pub fn alignment(&self) -> usize {
+        self.size_and_alignment().1
+    }
+
+    fn size_and_alignment(&self) -> (usize, usize) {
+        match *self {
             Type::Void { size, alignment } => (size, alignment),
             Type::Char { size, alignment } => (size, alignment),
             Type::Short { size, alignment } => (size, alignment),
@@ -128,47 +147,8 @@ impl Type {
             Type::Union {
                 size, alignment, ..
             } => (size, alignment),
-            _ => panic!(),
-        };
-
-        Type::Array {
-            size: size * len,
-            alignment: *alignment,
-            array_len: len,
-            base: Box::new(base_ty),
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        *match self {
-            Type::Void { size, .. } => size,
-            Type::Bool { size, .. } => size,
-            Type::Char { size, .. } => size,
-            Type::Short { size, .. } => size,
-            Type::Int { size, .. } => size,
-            Type::Long { size, .. } => size,
-            Type::Ptr { size, .. } => size,
+            Type::Bool { size, alignment } => (size, alignment),
             Type::Func(_) => panic!(),
-            Type::Array { size, .. } => size,
-            Type::Struct { size, .. } => size,
-            Type::Union { size, .. } => size,
-            Type::NoType => panic!(),
-        }
-    }
-
-    pub fn alignment(&self) -> usize {
-        *match self {
-            Type::Void { alignment, .. } => alignment,
-            Type::Bool { alignment, .. } => alignment,
-            Type::Char { alignment, .. } => alignment,
-            Type::Short { alignment, .. } => alignment,
-            Type::Int { alignment, .. } => alignment,
-            Type::Long { alignment, .. } => alignment,
-            Type::Ptr { alignment, .. } => alignment,
-            Type::Func(_) => panic!(),
-            Type::Array { alignment, .. } => alignment,
-            Type::Struct { alignment, .. } => alignment,
-            Type::Union { alignment, .. } => alignment,
             Type::NoType => panic!(),
         }
     }

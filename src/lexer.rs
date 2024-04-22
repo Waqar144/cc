@@ -46,13 +46,14 @@ fn read_escaped_char(source: &str) -> (char, usize) {
     if source.starts_with('x') {
         source = &source[1..]; // skip x
         let mut num: u32 = 0;
-        let count = 0;
+        let mut count = 1; // start at 1 to account for x in the beginning
         for c in source.chars() {
-            if !c.is_ascii_hexdigit() || count >= 2 {
+            if !c.is_ascii_hexdigit() || count >= 3 {
                 break;
             }
             let number = c.to_digit(16).unwrap();
             num = (num << 4) + number;
+            count += 1;
         }
         return (num as u8 as char, count);
     }
@@ -105,6 +106,24 @@ fn read_string_literal(mut source: &str) -> Result<(usize, String), &str> {
     let count = start.len() - source.len();
 
     Ok((count, string))
+}
+
+fn read_char_literal(source: &str) -> Result<(char, usize), &str> {
+    let source = &source[1..]; // skip '
+    let c = source.chars().nth(0).ok_or("Unclosed char literal")?;
+    let val;
+    let read_chars;
+    if c == '\\' {
+        let source = &source[1..]; // skip \
+        let (v, count) = read_escaped_char(source);
+        read_chars = count + 1;
+        val = v;
+    } else {
+        val = c;
+        read_chars = 1;
+    }
+
+    Ok((val, read_chars))
 }
 
 pub fn tokenize(source: &str) -> Vec<Token> {
@@ -186,8 +205,21 @@ pub fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
+        if c == '\'' {
+            let (val, read_chars) = read_char_literal(span)
+                .map_or_else(|err| exit_with_error(err, line, source, offset), |ok| ok);
+            tokens.push(Token::digit(
+                offset,
+                read_chars + 2,
+                val as i8 as usize,
+                line,
+            ));
+            offset += read_chars + 2;
+            span = &span[read_chars + 2..]; // 2 ''
+            continue;
+        }
+
         if is_punct(c) {
-            println!("PUNCT: {c}");
             span = &span[1..];
             tokens.push(Token::op(offset, 1, line));
             offset += 1;

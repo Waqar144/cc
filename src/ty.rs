@@ -65,6 +65,10 @@ pub enum Type {
         alignment: usize,
         members: Vec<StructMember>,
     },
+    Enum {
+        size: usize,
+        alignment: usize,
+    },
     NoType,
 }
 
@@ -91,6 +95,12 @@ impl Type {
         Type::Long {
             size: 8,
             alignment: 8,
+        }
+    }
+    pub fn enum_type() -> Type {
+        Type::Enum {
+            size: 4,
+            alignment: 4,
         }
     }
 
@@ -135,6 +145,7 @@ impl Type {
             Type::Short { size, alignment } => (size, alignment),
             Type::Int { size, alignment } => (size, alignment),
             Type::Long { size, alignment } => (size, alignment),
+            Type::Enum { size, alignment } => (size, alignment),
             Type::Ptr {
                 size, alignment, ..
             } => (size, alignment),

@@ -15,7 +15,7 @@ fn is_octal_char(c: char) -> bool {
 fn is_keyword(span: &str) -> bool {
     match span {
         "if" | "else" | "return" | "for" | "while" | "int" | "sizeof" | "struct" | "union"
-        | "long" | "short" | "void" | "char" | "typedef" | "_Bool" => true,
+        | "long" | "short" | "void" | "char" | "typedef" | "_Bool" | "enum" => true,
         _ => false,
     }
 }

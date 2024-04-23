@@ -84,6 +84,11 @@ enum Scope {
         name: String,
         typedef: Type,
     },
+    Enumerator {
+        name: String,
+        val: usize,
+        ty: Type,
+    },
 }
 
 #[derive(Default)]
@@ -319,6 +324,65 @@ impl Parser<'_> {
         st
     }
 
+    // enum-specifier = ident? "{" enum-list? "}"
+    //                | ident ("{" enum-list? "}")?
+    //
+    // enum-list      = ident ("=" num)? ("," ident ("=" num)?)*
+    fn enum_specifier(&mut self) -> Type {
+        let ty = Type::enum_type();
+
+        // read tag
+        let mut tag_name = String::new();
+        if self.next_token_kind_is(TokenKind::Identifier) {
+            tag_name = self.next_token_text().into();
+            self.tokens.get_mut().next();
+        }
+
+        // struct ref
+        if !tag_name.is_empty() && !self.next_token_equals("{") {
+            let tagscope = self.find_tag_scope(&tag_name);
+            if let None = tagscope {
+                eprintln!("Unknown enum {tag_name}");
+                panic!();
+            }
+            let ts = tagscope.unwrap();
+            if !matches!(ts.ty, Type::Enum { .. }) {
+                eprintln!("Not an enum tag");
+                panic!();
+            }
+            return ts.ty.clone();
+        }
+
+        self.skip("{");
+
+        let mut first = true;
+        let mut val = 0;
+        while !self.consume("}") {
+            if !first {
+                self.skip(",");
+            }
+            first = false;
+
+            let ident = self.next_token_text().to_string();
+            self.tokens.get_mut().next();
+            println!("read enumerator: {ident}");
+
+            if self.consume("=") {
+                val = self.peek().unwrap().val.unwrap();
+                self.tokens.get_mut().next();
+            }
+
+            self.push_enum_scope(ident, ty.clone(), val);
+            val += 1;
+        }
+
+        if !tag_name.is_empty() {
+            self.push_tag_scope(&tag_name, ty.clone());
+        }
+
+        ty
+    }
+
     fn declspec(&mut self, var_attr: &mut VarAttr) -> Type {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
@@ -379,6 +443,15 @@ impl Parser<'_> {
                     counter += CTypes::OTHER as usize;
                     continue;
                 }
+                "enum" => {
+                    if counter > 0 {
+                        break;
+                    }
+                    self.tokens.get_mut().next(); // skip "enum"
+                    ty = self.enum_specifier();
+                    counter += CTypes::OTHER as usize;
+                    continue;
+                }
                 _ => {
                     eprintln!("unexpected type {}", self.next_token_text());
                     panic!();
@@ -425,6 +498,15 @@ impl Parser<'_> {
 
     fn leave_scope(&mut self) {
         self.scopes.pop();
+    }
+
+    fn push_enum_scope<'a>(&mut self, name: String, ty: Type, val: usize) {
+        assert!(!self.scopes.is_empty());
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .var_scopes
+            .push(Scope::Enumerator { name, val, ty });
     }
 
     fn push_var_scope<'a>(&mut self, name: String, is_global: bool, index: usize) {
@@ -1218,16 +1300,30 @@ impl Parser<'_> {
                 return self.function_call();
             }
 
-            let Some((idx, is_global, ty)) = self.find_var() else {
+            let name = {
+                let mut tokens = self.tokens.get_mut().clone();
+                let token = tokens.peek().unwrap();
+                self.text(*token)
+            };
+
+            let var = self.find_var(name);
+            if let Some(Scope::Object { is_global, idx, .. }) = var {
+                let (idx, is_global, ty) = self.get_var(*is_global, *idx);
+                self.tokens.get_mut().next(); // skip ident
+                return Node::Variable(Variable {
+                    idx,
+                    is_local: !is_global,
+                    ty,
+                });
+            } else if let Some(Scope::Enumerator { val, ty, .. }) = var {
+                let val = *val;
+                let ty = ty.clone();
+                self.tokens.get_mut().next(); // skip ident
+                return Node::Numeric(Numeric { val, ty });
+            } else {
                 eprintln!("Unknown variable {}", self.next_token_text());
                 panic!();
-            };
-            self.tokens.get_mut().next(); // skip var
-            return Node::Variable(Variable {
-                idx,
-                is_local: !is_global,
-                ty,
-            });
+            }
         }
 
         if self.next_token_kind_is(TokenKind::StringLiteral) {
@@ -1316,13 +1412,13 @@ impl Parser<'_> {
     fn find_var_scope(&self, var_name: &str) -> Option<&Scope> {
         for scope in self.scopes.iter().rev() {
             for varscope in scope.var_scopes.iter().rev() {
-                if let Scope::Object { name, .. } = varscope {
-                    if var_name == name {
-                        return Some(varscope);
-                    }
-                } else if let Scope::TypeDef { name, .. } = varscope {
-                    if var_name == name {
-                        return Some(varscope);
+                match varscope {
+                    Scope::Object { name, .. }
+                    | Scope::TypeDef { name, .. }
+                    | Scope::Enumerator { name, .. } => {
+                        if var_name == name {
+                            return Some(varscope);
+                        }
                     }
                 }
             }
@@ -1362,23 +1458,24 @@ impl Parser<'_> {
         self.abstract_declarator(&mut t)
     }
 
-    // returns the idx of the variable and whether its global
-    fn find_var(&mut self) -> Option<(usize, bool, Type)> {
-        let token = self.peek().unwrap();
-        let text = self.text(&token);
-        if let Some(Scope::Object { is_global, idx, .. }) = self.find_var_scope(text) {
-            if *is_global {
-                if let Object::VarObject(vo) = &self.globals[*idx] {
-                    return Some((*idx, true, vo.ty.clone()));
-                }
-            } else {
-                let locals = self.locals.take();
-                let ty = locals[*idx].ty().clone();
-                self.locals.set(locals);
-                return Some((*idx, false, ty));
+    // returns the variable for given scope
+    fn get_var(&self, is_global: bool, idx: usize) -> (usize, bool, Type) {
+        if is_global {
+            if let Object::VarObject(vo) = &self.globals[idx] {
+                return (idx, true, vo.ty.clone());
             }
+        } else {
+            let locals = self.locals.take();
+            let ty = locals[idx].ty().clone();
+            self.locals.set(locals);
+            return (idx, false, ty);
         }
-        None
+        eprintln!("Failed to get var for given scope!");
+        panic!();
+    }
+
+    fn find_var(&self, name: &str) -> Option<&Scope> {
+        self.find_var_scope(name)
     }
 
     fn find_func_var(&mut self) -> Option<usize> {
@@ -1425,6 +1522,7 @@ impl Parser<'_> {
         {
             let type_keywords = [
                 "char", "int", "struct", "union", "long", "short", "void", "typedef", "_Bool",
+                "enum",
             ];
 
             let text = self.next_token_text();

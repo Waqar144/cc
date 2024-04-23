@@ -4,7 +4,7 @@ TESTDIR=test
 mkdir -p testout
 rm -rf testout/*
 
-TESTFILES="cast sizeof typedef union struct arith control function variable string pointer decl usualconv literal"
+TESTFILES="cast sizeof typedef union struct arith control function variable string pointer decl usualconv literal enum"
 
 for filename in $TESTFILES
 do

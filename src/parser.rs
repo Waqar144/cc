@@ -723,7 +723,16 @@ impl Parser<'_> {
         if self.next_token_equals("for") {
             self.skip("for");
             self.skip("(");
-            let init = self.expr_stmt();
+
+            self.enter_scope();
+
+            let init = if self.next_token_is_typename() {
+                let mut dummy = VarAttr::default();
+                let base_ty = self.declspec(&mut dummy);
+                self.declaration(base_ty)
+            } else {
+                self.expr_stmt()
+            };
 
             let mut cond: Option<Box<Node>> = None;
             if !self.next_token_equals(";") {
@@ -737,6 +746,9 @@ impl Parser<'_> {
             }
             self.skip(")");
             let then = self.stmt();
+
+            self.leave_scope();
+
             return Node::For(For {
                 init: init.into(),
                 cond,

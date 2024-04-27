@@ -31,14 +31,14 @@ pub struct VarObject {
 
 #[derive(Debug)]
 pub enum Object {
-    FunctionObject(FunctionObject),
-    VarObject(VarObject),
+    Function(FunctionObject),
+    Var(VarObject),
     Invalid,
 }
 
 impl Object {
     fn as_var_object_mut(&mut self) -> &mut VarObject {
-        if let Self::VarObject(v) = self {
+        if let Self::Var(v) = self {
             v
         } else {
             panic!()
@@ -47,14 +47,14 @@ impl Object {
 
     pub fn ty(&self) -> &Type {
         match self {
-            Object::FunctionObject(f) => &f.ty,
-            Object::VarObject(v) => &v.ty,
+            Object::Function(f) => &f.ty,
+            Object::Var(v) => &v.ty,
             Object::Invalid => panic!(),
         }
     }
 
-    pub fn as_function_object(self) -> FunctionObject {
-        if let Self::FunctionObject(v) = self {
+    pub fn into_function_object(self) -> FunctionObject {
+        if let Self::Function(v) = self {
             v
         } else {
             panic!()
@@ -62,7 +62,7 @@ impl Object {
     }
 
     pub fn as_function_object_ref(&self) -> &FunctionObject {
-        if let Self::FunctionObject(v) = &self {
+        if let Self::Function(v) = &self {
             v
         } else {
             panic!()
@@ -118,7 +118,7 @@ pub struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    pub fn new<'a>(source: &'a str, tokens: &'a Vec<Token>) -> Parser<'a> {
+    pub fn new<'a>(source: &'a str, tokens: &'a [Token]) -> Parser<'a> {
         Parser {
             source,
             globals: Vec::new(),
@@ -126,7 +126,7 @@ impl Parser<'_> {
             locals: Cell::new(Vec::new()),
             tokens: tokens.iter().peekable().into(),
             str_literal_counter: 1,
-            current_fn_return_ty: Type::NoType,
+            current_fn_return_ty: Type::None,
             current_fn: None,
         }
     }
@@ -270,7 +270,7 @@ impl Parser<'_> {
     }
 
     fn align_to(n: usize, align: usize) -> usize {
-        return ((n + align - 1) / align) * align;
+        ((n + align - 1) / align) * align
     }
 
     fn struct_decl(&mut self) -> Type {
@@ -343,7 +343,7 @@ impl Parser<'_> {
         // struct ref
         if !tag_name.is_empty() && !self.next_token_equals("{") {
             let tagscope = self.find_tag_scope(&tag_name);
-            if let None = tagscope {
+            if tagscope.is_none() {
                 eprintln!("Unknown enum {tag_name}");
                 panic!();
             }
@@ -409,13 +409,10 @@ impl Parser<'_> {
                 continue;
             }
 
-            match (var_attr.is_typedef, var_attr.is_static) {
-                (true, true) => {
-                    eprintln!("Typedef and static can't be used together");
-                    panic!();
-                }
-                _ => (),
-            };
+            if let (true, true) = (var_attr.is_typedef, var_attr.is_static) {
+                eprintln!("Typedef and static can't be used together");
+                panic!();
+            }
 
             if !self.next_token_is_typename() {
                 break;
@@ -495,7 +492,7 @@ impl Parser<'_> {
                 }
                 _ => {
                     eprintln!("invalid type");
-                    Type::NoType
+                    Type::None
                 }
             };
 
@@ -513,7 +510,7 @@ impl Parser<'_> {
         self.scopes.pop();
     }
 
-    fn push_enum_scope<'a>(&mut self, name: String, ty: Type, val: usize) {
+    fn push_enum_scope(&mut self, name: String, ty: Type, val: usize) {
         assert!(!self.scopes.is_empty());
         self.scopes
             .last_mut()
@@ -522,7 +519,7 @@ impl Parser<'_> {
             .push(Scope::Enumerator { name, val, ty });
     }
 
-    fn push_var_scope<'a>(&mut self, name: String, is_global: bool, index: usize) {
+    fn push_var_scope(&mut self, name: String, is_global: bool, index: usize) {
         assert!(!self.scopes.is_empty());
         self.scopes
             .last_mut()
@@ -535,7 +532,7 @@ impl Parser<'_> {
             });
     }
 
-    fn push_typedef_scope<'a>(&mut self, name: String, ty: Type) {
+    fn push_typedef_scope(&mut self, name: String, ty: Type) {
         assert!(!self.scopes.is_empty());
         self.scopes
             .last_mut()
@@ -553,7 +550,7 @@ impl Parser<'_> {
     }
 
     fn new_variable(&mut self, name: &str, ty: Type, is_global: bool) -> Object {
-        let obj = Object::VarObject(VarObject {
+        let obj = Object::Var(VarObject {
             name: name.to_string(),
             ty,
             offset: 0.into(),
@@ -603,7 +600,7 @@ impl Parser<'_> {
         let mut base_ty = base_ty;
         let (ty, ident) = self.declarator(&mut base_ty);
 
-        let function = Object::FunctionObject(FunctionObject {
+        let function = Object::Function(FunctionObject {
             name: ident.clone(),
             locals: Vec::new(),
             params: Vec::new(),
@@ -631,9 +628,9 @@ impl Parser<'_> {
             self.consume("{");
 
             self.current_fn_return_ty = *func.return_type.clone();
-            self.current_fn = Some(function.as_function_object());
+            self.current_fn = Some(function.into_function_object());
 
-            let body = self.compound_stmt().as_block().unwrap();
+            let body = self.compound_stmt().into_block().unwrap();
 
             self.leave_scope();
             let mut f = self.current_fn.take().unwrap();
@@ -641,7 +638,7 @@ impl Parser<'_> {
             f.is_func_def = true;
             f.body = body.block_body;
             f.locals = self.locals.take();
-            return Object::FunctionObject(f);
+            return Object::Function(f);
         }
 
         eprintln!("Expected function type!");
@@ -856,7 +853,7 @@ impl Parser<'_> {
             });
             let rhs = self.assign();
             let node = Node::Assign(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
             });
@@ -879,7 +876,7 @@ impl Parser<'_> {
         let mut node = self.equality();
         if self.consume("=") {
             node = Node::Assign(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(node),
                 rhs: Box::new(self.assign()),
             });
@@ -895,7 +892,7 @@ impl Parser<'_> {
             if self.next_token_equals("==") {
                 self.skip("==");
                 node = Node::Eq(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.relational()),
                 });
@@ -905,7 +902,7 @@ impl Parser<'_> {
             if self.next_token_equals("!=") {
                 self.skip("!=");
                 node = Node::NotEq(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.relational()),
                 });
@@ -924,7 +921,7 @@ impl Parser<'_> {
             if self.next_token_equals("<") {
                 self.skip("<");
                 node = Node::LessThan(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.add()),
                 });
@@ -934,7 +931,7 @@ impl Parser<'_> {
             if self.next_token_equals("<=") {
                 self.skip("<=");
                 node = Node::LessThanEq(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.add()),
                 });
@@ -944,7 +941,7 @@ impl Parser<'_> {
             if self.next_token_equals(">") {
                 self.skip(">");
                 node = Node::LessThan(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(self.add()),
                     rhs: Box::new(node),
                 });
@@ -954,7 +951,7 @@ impl Parser<'_> {
             if self.next_token_equals(">=") {
                 self.skip(">=");
                 node = Node::LessThanEq(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(self.add()),
                     rhs: Box::new(node),
                 });
@@ -997,7 +994,7 @@ impl Parser<'_> {
             if self.next_token_equals("*") {
                 self.skip("*");
                 node = Node::Mul(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.cast()),
                 });
@@ -1007,7 +1004,7 @@ impl Parser<'_> {
             if self.next_token_equals("/") {
                 self.skip("/");
                 node = Node::Div(BinaryNode {
-                    ty: Type::NoType,
+                    ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.cast()),
                 });
@@ -1048,7 +1045,7 @@ impl Parser<'_> {
             self.tokens.get_mut().next();
             return Node::AddressOf(AddressOf {
                 lhs: Box::new(self.cast()),
-                ty: Type::NoType,
+                ty: Type::None,
             });
         }
 
@@ -1056,7 +1053,7 @@ impl Parser<'_> {
             self.tokens.get_mut().next();
             return Node::Dereference(Dereference {
                 lhs: Box::new(self.cast()),
-                ty: Type::NoType,
+                ty: Type::None,
             });
         }
 
@@ -1064,7 +1061,7 @@ impl Parser<'_> {
             self.tokens.get_mut().next();
             return Node::Neg(Neg {
                 lhs: Box::new(self.cast()),
-                ty: Type::NoType,
+                ty: Type::None,
             });
         }
 
@@ -1084,7 +1081,7 @@ impl Parser<'_> {
 
         if left.ty().is_number() && right.ty().is_number() {
             return Node::Add(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
             });
@@ -1100,7 +1097,7 @@ impl Parser<'_> {
         }
 
         right = Node::Mul(BinaryNode {
-            ty: Type::NoType,
+            ty: Type::None,
             lhs: Box::new(right),
             rhs: Box::new(Node::Numeric(Numeric {
                 // unwrap should be safe here, we made sure above that left is a ptr
@@ -1110,7 +1107,7 @@ impl Parser<'_> {
         });
 
         Node::Add(BinaryNode {
-            ty: Type::NoType,
+            ty: Type::None,
             lhs: Box::new(left),
             rhs: Box::new(right),
         })
@@ -1125,7 +1122,7 @@ impl Parser<'_> {
         if left.ty().is_number() && right.ty().is_number() {
             trace!("{}: {}", function!(), "Sub");
             return Node::Sub(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
             });
@@ -1133,7 +1130,7 @@ impl Parser<'_> {
 
         if left.ty().base_ty().is_some() && right.ty().is_number() {
             right = Node::Mul(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(right),
                 rhs: Box::new(Node::Numeric(Numeric {
                     // unwrap should be safe here, we made sure above that left is a ptr
@@ -1159,7 +1156,7 @@ impl Parser<'_> {
             });
             trace!("{}: {}", function!(), "Div");
             return Node::Div(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(node),
                 rhs: Node::Numeric(Numeric {
                     val: size,
@@ -1194,16 +1191,16 @@ impl Parser<'_> {
         match left.ty() {
             Type::Struct { members, .. } | Type::Union { members, .. } => {
                 let member = Self::get_struct_member(members, self.next_token_text());
-                return Node::StructMember(StructMembr {
+                Node::StructMember(StructMembr {
                     lhs: Box::new(left),
                     member,
-                });
+                })
             }
             _ => {
                 eprintln!("Expected a struct or union");
                 panic!();
             }
-        };
+        }
     }
 
     // postfix = primary ("[" expr "]")* | "." ident)*
@@ -1218,7 +1215,7 @@ impl Parser<'_> {
                 self.skip("]");
                 node = Node::Dereference(Dereference {
                     lhs: Box::new(self.new_add(node, idx_node)),
-                    ty: Type::NoType,
+                    ty: Type::None,
                 });
                 continue;
             }
@@ -1233,7 +1230,7 @@ impl Parser<'_> {
                 // x->y is short for (*x).y
                 node = Node::Dereference(Dereference {
                     lhs: Box::new(node),
-                    ty: Type::NoType,
+                    ty: Type::None,
                 });
                 node = self.struct_ref(node);
                 self.tokens.get_mut().next();
@@ -1251,7 +1248,7 @@ impl Parser<'_> {
         let mut node = self.assign();
         if self.consume(",") {
             node = Node::Comma(BinaryNode {
-                ty: Type::NoType,
+                ty: Type::None,
                 lhs: Box::new(node),
                 rhs: Box::new(self.expr()),
             });
@@ -1274,7 +1271,7 @@ impl Parser<'_> {
             let body = self.compound_stmt();
             let node = Node::StmtExpr(StmtExpr {
                 block_body: vec![body],
-                ty: Type::NoType,
+                ty: Type::None,
             });
             self.skip(")");
             return node;
@@ -1298,7 +1295,7 @@ impl Parser<'_> {
                 self.skip(")");
                 return Node::Numeric(Numeric {
                     val: t.size(),
-                    ty: Type::NoType,
+                    ty: Type::None,
                 });
             }
             // reset
@@ -1307,7 +1304,7 @@ impl Parser<'_> {
             node.add_type();
             return Node::Numeric(Numeric {
                 val: node.ty().size(),
-                ty: Type::NoType,
+                ty: Type::None,
             });
         }
 
@@ -1317,7 +1314,7 @@ impl Parser<'_> {
                 tokens_copy.next(); // skip ident
                 let res = tokens_copy
                     .next()
-                    .map(|t| self.text(&t) == "(")
+                    .map(|t| self.text(t) == "(")
                     .unwrap_or(false);
                 res
             };
@@ -1329,7 +1326,7 @@ impl Parser<'_> {
             let name = {
                 let mut tokens = self.tokens.get_mut().clone();
                 let token = tokens.peek().unwrap();
-                self.text(*token)
+                self.text(token)
             };
 
             let var = self.find_var(name);
@@ -1376,7 +1373,7 @@ impl Parser<'_> {
             let tok = self.peek().unwrap();
             let node = Node::Numeric(Numeric {
                 val: tok.val.unwrap(),
-                ty: Type::NoType,
+                ty: Type::None,
             });
             self.tokens.get_mut().next();
             return node;
@@ -1390,7 +1387,7 @@ impl Parser<'_> {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         let idx = self.find_func_var();
-        if let None = idx {
+        if idx.is_none() {
             eprintln!("Unknown function: {}", self.next_token_text());
             panic!();
         }
@@ -1487,7 +1484,7 @@ impl Parser<'_> {
     // returns the variable for given scope
     fn get_var(&self, is_global: bool, idx: usize) -> (usize, bool, Type) {
         if is_global {
-            if let Object::VarObject(vo) = &self.globals[idx] {
+            if let Object::Var(vo) = &self.globals[idx] {
                 return (idx, true, vo.ty.clone());
             }
         } else {
@@ -1526,7 +1523,7 @@ impl Parser<'_> {
                     });
                 }
 
-                if let Object::FunctionObject(_) = &self.globals[*idx] {
+                if let Object::Function(_) = &self.globals[*idx] {
                     return Some(*idx);
                 }
             }
@@ -1569,10 +1566,7 @@ impl Parser<'_> {
         } else {
             let mut ty = Type::int_type();
             let (ty, _) = self.declarator(&mut ty);
-            match ty {
-                Type::Func(_) => true,
-                _ => false,
-            }
+            matches!(ty, Type::Func(_))
         }
     }
 
@@ -1684,7 +1678,7 @@ impl Parser<'_> {
 
     fn next_token_text(&mut self) -> &str {
         if let Some(tok) = self.tokens.get_mut().peek() {
-            tok.text(&self.source)
+            tok.text(self.source)
         } else {
             panic!()
         }

@@ -150,12 +150,12 @@ impl Node {
 
     fn common_type(t1: &Type, t2: &Type) -> Type {
         if let Some(base) = t1.base_ty() {
-            return Type::pointer_to(*base.clone());
+            return Type::pointer_to(base.clone());
         }
         if t1.size() == 8 || t2.size() == 8 {
             return Type::long_type();
         }
-        return Type::int_type();
+        Type::int_type()
     }
 
     fn cast_into(node: &mut Node, ty: Type) {
@@ -209,7 +209,7 @@ impl Node {
             Node::Invalid => panic!(),
             Node::AddressOf(a) => {
                 if a.lhs.ty().is_array() {
-                    a.ty = Type::pointer_to(*a.lhs.ty().base_ty().unwrap().clone());
+                    a.ty = Type::pointer_to(a.lhs.ty().base_ty().unwrap().clone());
                 } else {
                     a.ty = Type::pointer_to(a.lhs.ty().clone());
                 }
@@ -227,24 +227,24 @@ impl Node {
                 }
 
                 d.lhs.add_type();
-                d.ty = *d.lhs.ty().base_ty().unwrap().clone();
+                d.ty = d.lhs.ty().base_ty().unwrap().clone();
             }
             Node::Neg(n) => {
                 n.lhs.add_type();
                 let ty = Self::common_type(&Type::int_type(), n.lhs.ty());
-                Self::cast_into(&mut *n.lhs, ty.clone());
+                Self::cast_into(&mut n.lhs, ty.clone());
                 n.ty = ty;
             }
             Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => {
                 n.lhs.add_type();
                 n.rhs.add_type();
-                Self::usual_arithmetic_conversion(&mut *n.lhs, &mut *n.rhs);
+                Self::usual_arithmetic_conversion(&mut n.lhs, &mut n.rhs);
                 n.ty = n.lhs.ty().clone();
             }
             Node::LessThan(n) | Node::LessThanEq(n) | Node::Eq(n) | Node::NotEq(n) => {
                 n.lhs.add_type();
                 n.rhs.add_type();
-                Self::usual_arithmetic_conversion(&mut *n.lhs, &mut *n.rhs);
+                Self::usual_arithmetic_conversion(&mut n.lhs, &mut n.rhs);
                 n.ty = Type::int_type();
             }
             Node::Assign(n) => {
@@ -256,7 +256,7 @@ impl Node {
                     eprintln!("Not an lvalue");
                     panic!();
                 } else if !matches!(lhs_ty, Type::Struct { .. }) {
-                    Self::cast_into(&mut *n.rhs, lhs_ty.clone());
+                    Self::cast_into(&mut n.rhs, lhs_ty.clone());
                 }
                 n.ty = lhs_ty.clone();
             }
@@ -275,20 +275,26 @@ impl Node {
             Node::For(f) => {
                 f.init.add_type();
                 f.then.add_type();
-                f.cond.as_mut().map(|c| c.add_type());
-                f.inc.as_mut().map(|i| i.add_type());
+                if let Some(c) = f.cond.as_mut() {
+                    c.add_type()
+                }
+                if let Some(i) = f.inc.as_mut() {
+                    i.add_type()
+                }
             }
             Node::If(i) => {
                 i.cond.add_type();
                 i.then.add_type();
-                i.els.as_mut().map(|i| i.add_type());
+                if let Some(i) = i.els.as_mut() {
+                    i.add_type()
+                }
             }
             Node::Return(r) => {
                 r.lhs.add_type();
             }
             Node::StructMember(_) => (),
             Node::FunctionCall(f) => {
-                if let Type::NoType = f.ty {
+                if let Type::None = f.ty {
                     f.ty = Type::long_type();
                 }
             }
@@ -297,7 +303,7 @@ impl Node {
 
     pub fn ty(&self) -> &Type {
         match self {
-            Node::Block(_) => &Type::NoType,
+            Node::Block(_) => &Type::None,
             Node::Variable(v) => &v.ty,
             Node::StmtExpr(se) => &se.ty,
             Node::Numeric(n) => &n.ty,
@@ -309,18 +315,18 @@ impl Node {
             Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => &n.ty,
             Node::LessThan(n) | Node::LessThanEq(n) | Node::Eq(n) | Node::NotEq(n) => &n.ty,
             Node::Assign(a) => &a.ty,
-            Node::ExprStmt(_) => &Type::NoType,
+            Node::ExprStmt(_) => &Type::None,
             Node::Comma(c) => &c.ty,
-            Node::While(_) => &Type::NoType,
-            Node::For(_) => &Type::NoType,
-            Node::If(_) => &Type::NoType,
-            Node::Return(_) => &Type::NoType,
+            Node::While(_) => &Type::None,
+            Node::For(_) => &Type::None,
+            Node::If(_) => &Type::None,
+            Node::Return(_) => &Type::None,
             Node::StructMember(s) => &s.member.ty,
             Node::FunctionCall(f) => &f.ty,
         }
     }
 
-    pub fn as_block(self) -> Option<Block> {
+    pub fn into_block(self) -> Option<Block> {
         if let Self::Block(v) = self {
             Some(v)
         } else {

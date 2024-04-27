@@ -1,23 +1,37 @@
 use crate::token::Token;
 
 fn is_start_of_identifier(c: char) -> bool {
-    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+    c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
 }
 
 fn is_identifier(c: char) -> bool {
-    return is_start_of_identifier(c) || ('0' <= c && c <= '9');
+    is_start_of_identifier(c) || c.is_ascii_digit()
 }
 
 fn is_octal_char(c: char) -> bool {
-    '0' <= c && c <= '7'
+    ('0'..='7').contains(&c)
 }
 
 fn is_keyword(span: &str) -> bool {
-    match span {
-        "if" | "else" | "return" | "for" | "while" | "int" | "sizeof" | "struct" | "union"
-        | "long" | "short" | "void" | "char" | "typedef" | "_Bool" | "enum" | "static" => true,
-        _ => false,
-    }
+    matches!(
+        span,
+        "if" | "else"
+            | "return"
+            | "for"
+            | "while"
+            | "int"
+            | "sizeof"
+            | "struct"
+            | "union"
+            | "long"
+            | "short"
+            | "void"
+            | "char"
+            | "typedef"
+            | "_Bool"
+            | "enum"
+            | "static"
+    )
 }
 
 fn is_punct(c: char) -> bool {
@@ -28,7 +42,7 @@ fn read_escaped_char(source: &str) -> (char, usize) {
     let mut source = source;
 
     // octal
-    if source.starts_with(|c| is_octal_char(c)) {
+    if source.starts_with(is_octal_char) {
         let mut num = 0;
         let mut count = 0;
         for c in source.chars() {
@@ -58,7 +72,7 @@ fn read_escaped_char(source: &str) -> (char, usize) {
         return (num as u8 as char, count);
     }
 
-    let c = source.chars().nth(0).unwrap();
+    let c = source.chars().next().unwrap();
     let num = match c {
         'a' => 7,
         'b' => 8,
@@ -70,14 +84,14 @@ fn read_escaped_char(source: &str) -> (char, usize) {
         'e' => 27,
         _ => c as u8,
     } as char;
-    return (num, 1);
+    (num, 1)
 }
 
 fn read_string_literal(mut source: &str) -> Result<(usize, String), &str> {
     let mut string = String::new();
     let start = source;
     loop {
-        let c = source.chars().nth(0).unwrap();
+        let c = source.chars().next().unwrap();
 
         if c == '"' {
             break;
@@ -110,7 +124,7 @@ fn read_string_literal(mut source: &str) -> Result<(usize, String), &str> {
 
 fn read_char_literal(source: &str) -> Result<(char, usize), &str> {
     let source = &source[1..]; // skip '
-    let c = source.chars().nth(0).ok_or("Unclosed char literal")?;
+    let c = source.chars().next().ok_or("Unclosed char literal")?;
     let val;
     let read_chars;
     if c == '\\' {
@@ -149,7 +163,7 @@ pub fn tokenize(source: &str) -> Vec<Token> {
             continue;
         }
 
-        let Some(c) = span.chars().nth(0) else {
+        let Some(c) = span.chars().next() else {
             // println!("Reached end? {offset}");
             break;
         };

@@ -14,15 +14,15 @@ fn main() {
         std::process::exit(1);
     }
 
-    let file_name = args.iter().nth(1).unwrap();
+    let file_name = args.get(1).unwrap();
     let path = std::path::Path::new(&file_name);
 
-    let mut codegen_out: Box<dyn std::io::Write> = if let Some(out) = args.iter().nth(2) {
+    let mut codegen_out: Box<dyn std::io::Write> = if let Some(out) = args.get(2) {
         if out != "-o" {
             eprintln!("Unknown param {out}");
             std::process::exit(1);
         }
-        let Some(out_file) = args.iter().nth(3) else {
+        let Some(out_file) = args.get(3) else {
             eprintln!("No output file name specified with -o");
             std::process::exit(1);
         };
@@ -30,7 +30,7 @@ fn main() {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(&out_file);
+            .open(out_file);
         if let Err(e) = file {
             eprintln!("Failed to open file, error: {e}");
             std::process::exit(1);

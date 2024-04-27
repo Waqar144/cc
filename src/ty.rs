@@ -69,7 +69,7 @@ pub enum Type {
         size: usize,
         alignment: usize,
     },
-    NoType,
+    None,
 }
 
 impl Type {
@@ -160,15 +160,12 @@ impl Type {
             } => (size, alignment),
             Type::Bool { size, alignment } => (size, alignment),
             Type::Func(_) => panic!(),
-            Type::NoType => panic!(),
+            Type::None => panic!(),
         }
     }
 
     pub fn has_type(&self) -> bool {
-        match self {
-            Type::NoType => false,
-            _ => true,
-        }
+        !matches!(self, Type::None)
     }
 
     pub fn is_number(&self) -> bool {
@@ -182,7 +179,7 @@ impl Type {
         )
     }
 
-    pub fn base_ty(&self) -> Option<&Box<Type>> {
+    pub fn base_ty(&self) -> Option<&Type> {
         match self {
             Type::Ptr { base, .. } | Type::Array { base, .. } => Some(base),
             _ => None,

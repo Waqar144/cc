@@ -7,10 +7,10 @@ use crate::{
     ty::Type,
 };
 
-const ARG_REGS8: [&'static str; 6] = ["%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"];
-const ARG_REGS16: [&'static str; 6] = ["%di", "%si", "%dx", "%cx", "%r8w", "%r9w"];
-const ARG_REGS32: [&'static str; 6] = ["%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"];
-const ARG_REGS64: [&'static str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+const ARG_REGS8: [&str; 6] = ["%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"];
+const ARG_REGS16: [&str; 6] = ["%di", "%si", "%dx", "%cx", "%r8w", "%r9w"];
+const ARG_REGS32: [&str; 6] = ["%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"];
+const ARG_REGS64: [&str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
 
 static mut TRACE_DEPTH: usize = 1;
 add_tracing!();
@@ -45,11 +45,11 @@ impl CodeGenerator<'_> {
         let _t = TraceRaii::new();
         trace!("gen_data");
         for global in self.program.iter() {
-            let Object::VarObject(o) = global else {
+            let Object::Var(o) = global else {
                 continue;
             };
 
-            self.emit(&format!(".data"));
+            self.emit(".data");
             self.emit(&format!("  .globl {}", o.name));
             self.emit(&format!("{}:", o.name));
 
@@ -195,7 +195,7 @@ impl CodeGenerator<'_> {
         match node {
             Node::Variable(v) => {
                 let var = self.var_object_for_idx(v.idx, v.is_local);
-                let Some(Object::VarObject(var)) = var else {
+                let Some(Object::Var(var)) = var else {
                     eprintln!(
                         "Expected to find a variable for given var idx, idx: {}, is_local: {}",
                         v.idx, v.is_local
@@ -209,13 +209,13 @@ impl CodeGenerator<'_> {
                     self.emit(&format!("  lea {}(%rip), %rax", var.name));
                 }
             }
-            Node::Dereference(d) => self.gen_expr(&*d.lhs),
+            Node::Dereference(d) => self.gen_expr(&d.lhs),
             Node::Comma(c) => {
-                self.gen_expr(&*c.lhs);
-                self.gen_address(&*c.rhs);
+                self.gen_expr(&c.lhs);
+                self.gen_address(&c.rhs);
             }
             Node::StructMember(s) => {
-                self.gen_address(&*s.lhs);
+                self.gen_address(&s.lhs);
                 self.emit(&format!("  add ${}, %rax", s.member.offset));
             }
             _ => {
@@ -232,7 +232,7 @@ impl CodeGenerator<'_> {
         match node {
             Node::Numeric(num) => self.emit(&format!("  mov ${}, %rax", num.val)),
             Node::Neg(n) => {
-                self.gen_expr(&*n.lhs);
+                self.gen_expr(&n.lhs);
                 self.emit("  neg %rax");
             }
             Node::Variable(_) | Node::StructMember(_) => {
@@ -240,14 +240,14 @@ impl CodeGenerator<'_> {
                 self.load(node.ty());
             }
             Node::Assign(a) => {
-                self.gen_address(&*a.lhs);
+                self.gen_address(&a.lhs);
                 self.push();
-                self.gen_expr(&*a.rhs);
+                self.gen_expr(&a.rhs);
                 self.store(&a.ty);
             }
-            Node::AddressOf(a) => self.gen_address(&*a.lhs),
+            Node::AddressOf(a) => self.gen_address(&a.lhs),
             Node::Dereference(d) => {
-                self.gen_expr(&*d.lhs);
+                self.gen_expr(&d.lhs);
                 self.load(&d.ty);
             }
             Node::StmtExpr(s) => {
@@ -269,11 +269,11 @@ impl CodeGenerator<'_> {
                 self.emit(&format!("  call {}", f.name));
             }
             Node::Comma(c) => {
-                self.gen_expr(&*c.lhs);
-                self.gen_expr(&*c.rhs);
+                self.gen_expr(&c.lhs);
+                self.gen_expr(&c.rhs);
             }
             Node::Cast(c) => {
-                self.gen_expr(&*c.lhs);
+                self.gen_expr(&c.lhs);
                 self.cast(c.lhs.ty(), &c.ty);
             }
             _ => handled = false,
@@ -286,9 +286,9 @@ impl CodeGenerator<'_> {
         let mut di = "";
         let mut ax = "";
         if let Some(b) = node.binary_node() {
-            self.gen_expr(&*b.rhs);
+            self.gen_expr(&b.rhs);
             self.push();
-            self.gen_expr(&*b.lhs);
+            self.gen_expr(&b.lhs);
             self.pop("%rdi");
 
             if b.lhs.ty().size() == 8 {
@@ -333,18 +333,18 @@ impl CodeGenerator<'_> {
         match node {
             Node::For(f) => {
                 let c = self.next_count();
-                self.gen_stmt(&*f.init);
+                self.gen_stmt(&f.init);
                 self.emit(&format!(".L.begin.{}:", c));
 
                 if let Some(cond) = &f.cond {
-                    self.gen_expr(&*cond);
+                    self.gen_expr(cond);
                     self.emit("  cmp $0, %rax");
                     self.emit(&format!("  je .L.end.{}", c));
                 }
 
-                self.gen_stmt(&*f.then);
+                self.gen_stmt(&f.then);
                 if let Some(inc) = &f.inc {
-                    self.gen_expr(&*inc);
+                    self.gen_expr(inc);
                 }
                 self.emit(&format!("  jmp .L.begin.{}", c));
                 self.emit(&format!(".L.end.{}:", c));
@@ -354,49 +354,49 @@ impl CodeGenerator<'_> {
 
                 self.emit(&format!(".L.begin.{}:", c));
 
-                self.gen_expr(&*w.cond);
+                self.gen_expr(&w.cond);
                 self.emit("  cmp $0, %rax");
                 self.emit(&format!("  je .L.end.{}", c));
-                self.gen_stmt(&*w.then);
+                self.gen_stmt(&w.then);
                 self.emit(&format!("  jmp .L.begin.{}", c));
                 self.emit(&format!(".L.end.{}:", c));
             }
             Node::If(i) => {
                 let c = self.next_count();
-                self.gen_expr(&*i.cond);
+                self.gen_expr(&i.cond);
 
-                self.emit(&format!("  cmp $0, %rax"));
+                self.emit("  cmp $0, %rax");
                 self.emit(&format!("  je .L.else.{}", c));
-                self.gen_stmt(&*i.then);
+                self.gen_stmt(&i.then);
                 self.emit(&format!("  jmp .L.end.{}", c));
                 self.emit(&format!(".L.else.{}:", c));
                 if let Some(els) = &i.els {
-                    self.gen_stmt(&*els);
+                    self.gen_stmt(els);
                 }
                 self.emit(&format!(".L.end.{}:", c));
             }
             Node::Block(block) => {
                 for node in block.block_body.iter() {
-                    self.gen_stmt(&node)
+                    self.gen_stmt(node)
                 }
             }
             Node::Return(r) => {
-                self.gen_expr(&*r.lhs);
+                self.gen_expr(&r.lhs);
                 self.emit(&format!("  jmp .L.return.{}", self.current_fn_name));
             }
-            Node::ExprStmt(e) => self.gen_expr(&*e.lhs),
+            Node::ExprStmt(e) => self.gen_expr(&e.lhs),
             _ => (),
         }
     }
 
     fn align_to(n: usize, align: usize) -> usize {
-        return ((n + align - 1) / align) * align;
+        ((n + align - 1) / align) * align
     }
 
-    fn assign_offset_to_local_vars(locals: &Vec<Object>) -> usize {
+    fn assign_offset_to_local_vars(locals: &[Object]) -> usize {
         let mut off = 0;
         for local in locals.iter().rev() {
-            let Object::VarObject(local) = local else {
+            let Object::Var(local) = local else {
                 eprintln!("Expected VarObject");
                 panic!();
             };
@@ -418,7 +418,7 @@ impl CodeGenerator<'_> {
         self.gen_data();
 
         for global in self.program.iter() {
-            let Object::FunctionObject(f) = global else {
+            let Object::Function(f) = global else {
                 continue;
             };
             if !f.is_func_def {
@@ -432,7 +432,7 @@ impl CodeGenerator<'_> {
             } else {
                 self.emit(&format!("  .globl {}", f.name));
             }
-            self.emit(&format!("  .text"));
+            self.emit("  .text");
             self.emit(&format!("{}:", f.name));
 
             // prologue
@@ -442,10 +442,9 @@ impl CodeGenerator<'_> {
                 self.emit(&format!("  sub ${}, %rsp", stack_size));
             }
 
-            let mut i = 0;
-            for param in f.params.iter() {
+            for (i, param) in f.params.iter().enumerate() {
                 let l = f.locals.get(*param);
-                let Some(Object::VarObject(v)) = l else {
+                let Some(Object::Var(v)) = l else {
                     eprintln!("Expected a local for given param idx {param}");
                     panic!();
                 };
@@ -477,7 +476,6 @@ impl CodeGenerator<'_> {
                     eprintln!("More than 6 args not supported");
                     panic!();
                 }
-                i += 1;
             }
 
             self.current_fn_name = f.name.clone();

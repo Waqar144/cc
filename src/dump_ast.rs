@@ -3,10 +3,10 @@ use crate::{debug::node_name, node::Node, parser::Object};
 #[allow(dead_code)]
 pub fn dump_ast(program: &Vec<Object>) {
     for global in program {
-        let Object::FunctionObject(f) = global else {
+        let Object::Function(f) = global else {
             continue;
         };
-        let depth = 0 as usize;
+        let depth = 0;
         for node in f.body.iter() {
             dump(node, depth);
         }
@@ -21,7 +21,7 @@ fn indent(depth: usize) {
 
 fn dump(node: &Node, depth: usize) {
     indent(depth);
-    print!("- {}\n", node_name(node));
+    println!("- {}", node_name(node));
     match node {
         Node::Block(b) => {
             for n in b.block_body.iter() {
@@ -62,17 +62,17 @@ fn dump(node: &Node, depth: usize) {
         Node::For(n) => {
             dump(&n.init, depth + 1);
             if let Some(cond) = &n.cond {
-                dump(&cond, depth + 1);
+                dump(cond, depth + 1);
             }
             if let Some(inc) = &n.inc {
-                dump(&inc, depth + 1);
+                dump(inc, depth + 1);
             }
             dump(&n.then, depth + 1);
         }
         Node::If(n) => {
-            dump(&*n.cond, depth + 1);
+            dump(&n.cond, depth + 1);
             if let Some(els) = &n.els {
-                dump(&*els, depth + 1);
+                dump(els, depth + 1);
             }
             dump(&n.then, depth + 1);
         }

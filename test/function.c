@@ -66,6 +66,8 @@ int chartoint(char x)
 _Bool bool_fn_add(_Bool x) { return x + 1; }
 _Bool bool_fn_sub(_Bool x) { return x - 1; }
 
+static int static_fn() { return 5; }
+
 int main()
 {
     ASSERT(3, ret3());

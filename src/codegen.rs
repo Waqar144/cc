@@ -427,7 +427,11 @@ impl CodeGenerator<'_> {
 
             let stack_size = Self::assign_offset_to_local_vars(&f.locals);
 
-            self.emit(&format!("  .globl {}", f.name));
+            if f.is_static {
+                self.emit(&format!("  .local {}", f.name));
+            } else {
+                self.emit(&format!("  .globl {}", f.name));
+            }
             self.emit(&format!("  .text"));
             self.emit(&format!("{}:", f.name));
 

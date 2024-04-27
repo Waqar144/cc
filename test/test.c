@@ -10,3 +10,5 @@ void assert(int expected, int actual, const char* code)
         exit(1);
     }
 }
+
+static int static_fn() { return 5; }

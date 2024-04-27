@@ -17,6 +17,7 @@ pub struct FunctionObject {
     pub is_func_def: bool,
     pub body: Vec<Node>,
     pub ty: Type,
+    pub is_static: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +95,7 @@ enum Scope {
 #[derive(Default)]
 struct VarAttr {
     is_typedef: bool,
+    is_static: bool,
 }
 
 // Block level scope
@@ -152,7 +154,7 @@ impl Parser<'_> {
             if self.is_function() {
                 // reset the iterator
                 self.tokens.set(tokens_copy);
-                let func = self.function(base_type);
+                let func = self.function(base_type, attr);
                 self.globals.push(func);
                 continue;
             } else {
@@ -402,7 +404,18 @@ impl Parser<'_> {
             if self.consume("typedef") {
                 var_attr.is_typedef = true;
                 continue;
+            } else if self.consume("static") {
+                var_attr.is_static = true;
+                continue;
             }
+
+            match (var_attr.is_typedef, var_attr.is_static) {
+                (true, true) => {
+                    eprintln!("Typedef and static can't be used together");
+                    panic!();
+                }
+                _ => (),
+            };
 
             if !self.next_token_is_typename() {
                 break;
@@ -584,7 +597,7 @@ impl Parser<'_> {
         }
     }
 
-    fn function(&mut self, base_ty: Type) -> Object {
+    fn function(&mut self, base_ty: Type, var_attr: VarAttr) -> Object {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         let mut base_ty = base_ty;
@@ -597,6 +610,7 @@ impl Parser<'_> {
             is_func_def: false,
             body: Vec::new(),
             ty: ty.clone(),
+            is_static: var_attr.is_static,
         });
 
         self.push_var_scope(ident, true, self.globals.len());
@@ -1522,7 +1536,7 @@ impl Parser<'_> {
         {
             let type_keywords = [
                 "char", "int", "struct", "union", "long", "short", "void", "typedef", "_Bool",
-                "enum",
+                "enum", "static",
             ];
 
             let text = self.next_token_text();

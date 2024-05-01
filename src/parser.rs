@@ -1327,6 +1327,50 @@ impl Parser<'_> {
         }
     }
 
+    fn inc_dec(&mut self, mut node: Node, op: char) -> Node {
+        node.add_type();
+
+        fn add_one(_self: &mut Parser<'_>, node: Node) -> Node {
+            _self.new_add(
+                node,
+                Node::Numeric(Numeric {
+                    val: 1,
+                    ty: Type::int_type(),
+                }),
+            )
+        }
+        fn sub_one(_self: &mut Parser<'_>, node: Node) -> Node {
+            _self.new_sub(
+                node,
+                Node::Numeric(Numeric {
+                    val: 1,
+                    ty: Type::int_type(),
+                }),
+            )
+        }
+
+        let add_or_sub = if op == '+' {
+            add_one(self, node)
+        } else {
+            sub_one(self, node)
+        };
+
+        let assign = self.to_assign(add_or_sub, op);
+
+        let mut add_or_sub = if op == '+' {
+            sub_one(self, assign)
+        } else {
+            add_one(self, assign)
+        };
+        add_or_sub.add_type();
+        let ty = add_or_sub.ty().clone();
+
+        Node::Cast(Cast {
+            lhs: add_or_sub.into(),
+            ty: ty,
+        })
+    }
+
     // postfix = primary ("[" expr "]")* | "." ident)*
     fn postfix(&mut self) -> Node {
         let _t = TraceRaii::new();
@@ -1361,6 +1405,15 @@ impl Parser<'_> {
                 continue;
             }
 
+            if self.consume("++") {
+                node = self.inc_dec(node, '+');
+                continue;
+            }
+
+            if self.consume("--") {
+                node = self.inc_dec(node, '-');
+                continue;
+            }
             break;
         }
         node

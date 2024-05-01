@@ -1170,6 +1170,30 @@ impl Parser<'_> {
             return self.cast();
         }
 
+        if self.consume("++") {
+            let unary = self.unary();
+            let add = self.new_add(
+                unary,
+                Node::Numeric(Numeric {
+                    val: 1,
+                    ty: Type::int_type(),
+                }),
+            );
+            return self.to_assign(add, '+');
+        }
+
+        if self.consume("--") {
+            let unary = self.unary();
+            let add = self.new_sub(
+                unary,
+                Node::Numeric(Numeric {
+                    val: 1,
+                    ty: Type::int_type(),
+                }),
+            );
+            return self.to_assign(add, '-');
+        }
+
         self.postfix()
     }
 

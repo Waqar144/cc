@@ -870,10 +870,73 @@ impl Parser<'_> {
         block_node
     }
 
+    fn to_assign(&mut self, binary: Node, op: char) -> Node {
+        let binary = binary.binary_node_mut().unwrap();
+        let (mut lhs, mut rhs) = (binary.lhs, binary.rhs);
+        lhs.add_type();
+        rhs.add_type();
+
+        let var = self.new_variable("", Type::pointer_to(lhs.ty().clone()), false);
+        let var_ty = var.ty().clone();
+        self.locals.get_mut().push(var);
+        let var = Variable {
+            idx: self.locals.get_mut().len() - 1,
+            is_local: true,
+            ty: var_ty,
+        };
+
+        let expr1 = Node::Assign(BinaryNode {
+            ty: Type::None,
+            lhs: Node::Variable(var.clone()).into(),
+            rhs: Node::AddressOf(AddressOf {
+                lhs,
+                ty: Type::None,
+            })
+            .into(),
+        });
+
+        let expr2_rhs = BinaryNode {
+            ty: Type::None,
+            lhs: Node::Dereference(Dereference {
+                lhs: Node::Variable(var.clone()).into(),
+                ty: Type::None,
+            })
+            .into(),
+            rhs,
+        };
+        let expr2 = Node::Assign(BinaryNode {
+            ty: Type::None,
+            lhs: Node::Dereference(Dereference {
+                lhs: Box::new(Node::Variable(var)),
+                ty: Type::None,
+            })
+            .into(),
+            rhs: match op {
+                '+' => Node::Add(expr2_rhs).into(),
+                '-' => Node::Sub(expr2_rhs).into(),
+                '*' => Node::Mul(expr2_rhs).into(),
+                '/' => Node::Div(expr2_rhs).into(),
+                _ => {
+                    eprintln!("unexpected op {op}");
+                    panic!();
+                }
+            },
+        });
+
+        Node::Comma(BinaryNode {
+            ty: Type::None,
+            lhs: Box::new(expr1),
+            rhs: Box::new(expr2),
+        })
+    }
+
+    // assign    = equality (assign-op assign)?
+    // assign-op = "=" | "+=" | "-=" | "*=" | "/="
     fn assign(&mut self) -> Node {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         let mut node = self.equality();
+
         if self.consume("=") {
             node = Node::Assign(BinaryNode {
                 ty: Type::None,
@@ -881,6 +944,43 @@ impl Parser<'_> {
                 rhs: Box::new(self.assign()),
             });
         }
+
+        if self.consume("+=") {
+            let assign = self.assign();
+            let add = self.new_add(node, assign);
+            node = self.to_assign(add, '+');
+        }
+
+        if self.consume("-=") {
+            let assign = self.assign();
+            let sub = self.new_sub(node, assign);
+            node = self.to_assign(sub, '-');
+        }
+
+        if self.consume("*=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::Mul(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '*',
+            );
+        }
+
+        if self.consume("/=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::Div(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '/',
+            );
+        }
+
         node
     }
 

@@ -7,7 +7,7 @@ pub struct Block {
     pub block_body: Vec<Node>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub idx: usize,
     pub is_local: bool,
@@ -133,6 +133,22 @@ pub enum Node {
 
 impl Node {
     pub fn binary_node(&self) -> Option<&BinaryNode> {
+        match self {
+            Node::Add(b)
+            | Node::Mul(b)
+            | Node::Sub(b)
+            | Node::Div(b)
+            | Node::LessThan(b)
+            | Node::LessThanEq(b)
+            | Node::Eq(b)
+            | Node::NotEq(b)
+            | Node::Assign(b)
+            | Node::Comma(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    pub fn binary_node_mut(self) -> Option<BinaryNode> {
         match self {
             Node::Add(b)
             | Node::Mul(b)

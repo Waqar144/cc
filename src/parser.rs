@@ -110,7 +110,7 @@ pub struct Parser<'a> {
     pub globals: Vec<Object>,
     scopes: Vec<Scopes>,
     locals: Cell<Vec<Object>>,
-    tokens: Cell<std::iter::Peekable<std::slice::Iter<'a, Token>>>,
+    tokens: Cell<Option<std::iter::Peekable<std::slice::Iter<'a, Token>>>>,
     current_fn_return_ty: Type,
     str_literal_counter: usize,
     // the current function being parsed
@@ -124,7 +124,7 @@ impl Parser<'_> {
             globals: Vec::new(),
             scopes: vec![Scopes::default()],
             locals: Cell::new(Vec::new()),
-            tokens: tokens.iter().peekable().into(),
+            tokens: Some(tokens.iter().peekable()).into(),
             str_literal_counter: 1,
             current_fn_return_ty: Type::None,
             current_fn: None,
@@ -166,18 +166,6 @@ impl Parser<'_> {
         trace!("=>> end parse");
     }
 
-    fn peek(&mut self) -> Option<Token> {
-        self.tokens.get_mut().peek().cloned().cloned()
-    }
-
-    fn skip(&mut self, s: &str) {
-        if !self.next_token_equals(s) {
-            eprintln!("Expected {s}, got '{}'", self.next_token_text());
-            panic!();
-        }
-        self.tokens.get_mut().next();
-    }
-
     fn find_tag_scope(&self, tag: &str) -> Option<&TagScope> {
         for scope in self.scopes.iter().rev() {
             for tagscope in scope.tag_scopes.iter().rev() {
@@ -189,7 +177,7 @@ impl Parser<'_> {
         None
     }
 
-    fn find_typedef(&mut self) -> Option<Type> {
+    fn find_typedef(&self) -> Option<Type> {
         if self.next_token_kind_is(TokenKind::Identifier) {
             let name = self.next_token_text().to_string();
             return self.find_var_scope(&name).and_then(|ts| {
@@ -232,7 +220,7 @@ impl Parser<'_> {
         let mut tag_name = String::new();
         if self.next_token_kind_is(TokenKind::Identifier) {
             tag_name = self.next_token_text().into();
-            self.tokens.get_mut().next();
+            self.advance();
         }
 
         // struct ref
@@ -337,7 +325,7 @@ impl Parser<'_> {
         let mut tag_name = String::new();
         if self.next_token_kind_is(TokenKind::Identifier) {
             tag_name = self.next_token_text().into();
-            self.tokens.get_mut().next();
+            self.advance();
         }
 
         // struct ref
@@ -366,11 +354,11 @@ impl Parser<'_> {
             first = false;
 
             let ident = self.next_token_text().to_string();
-            self.tokens.get_mut().next();
+            self.advance();
 
             if self.consume("=") {
                 val = self.peek().unwrap().val.unwrap();
-                self.tokens.get_mut().next();
+                self.advance();
             }
 
             self.push_enum_scope(ident, ty.clone(), val);
@@ -422,7 +410,7 @@ impl Parser<'_> {
                     break;
                 }
                 ty = ty2;
-                self.tokens.get_mut().next(); // advance
+                self.advance(); // advance
                 counter += CTypes::OTHER as usize;
                 continue;
             }
@@ -438,7 +426,7 @@ impl Parser<'_> {
                     if counter > 0 {
                         break;
                     }
-                    self.tokens.get_mut().next(); // skip "struct"
+                    self.advance(); // skip "struct"
                     ty = self.struct_decl();
                     counter += CTypes::OTHER as usize;
                     continue;
@@ -447,7 +435,7 @@ impl Parser<'_> {
                     if counter > 0 {
                         break;
                     }
-                    self.tokens.get_mut().next(); // skip "union"
+                    self.advance(); // skip "union"
                     ty = self.union_decl();
                     counter += CTypes::OTHER as usize;
                     continue;
@@ -456,7 +444,7 @@ impl Parser<'_> {
                     if counter > 0 {
                         break;
                     }
-                    self.tokens.get_mut().next(); // skip "enum"
+                    self.advance(); // skip "enum"
                     ty = self.enum_specifier();
                     counter += CTypes::OTHER as usize;
                     continue;
@@ -495,7 +483,7 @@ impl Parser<'_> {
                 }
             };
 
-            self.tokens.get_mut().next(); // advance
+            self.advance(); // advance
         }
 
         ty
@@ -675,7 +663,7 @@ impl Parser<'_> {
         }
 
         let node = Node::Block(Block {
-            token: self.peek().unwrap(),
+            token: self.peek().cloned().unwrap(),
             block_body: body,
         });
 
@@ -799,7 +787,7 @@ impl Parser<'_> {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         if self.next_token_equals(";") {
-            let tok = self.peek().clone().unwrap();
+            let tok = self.peek().cloned().unwrap();
             self.skip(";");
             return Node::Block(Block {
                 token: tok,
@@ -860,12 +848,12 @@ impl Parser<'_> {
             nodes.push(cur);
         }
 
-        let token = self.peek().clone().unwrap();
+        let token = self.peek().cloned().unwrap();
         let block_node = Node::Block(Block {
             token,
             block_body: nodes,
         });
-        self.tokens.get_mut().next();
+        self.advance();
         block_node
     }
 
@@ -1141,7 +1129,7 @@ impl Parser<'_> {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
         if self.next_token_equals("&") {
-            self.tokens.get_mut().next();
+            self.advance();
             return Node::AddressOf(AddressOf {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
@@ -1149,7 +1137,7 @@ impl Parser<'_> {
         }
 
         if self.next_token_equals("*") {
-            self.tokens.get_mut().next();
+            self.advance();
             return Node::Dereference(Dereference {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
@@ -1157,7 +1145,7 @@ impl Parser<'_> {
         }
 
         if self.next_token_equals("-") {
-            self.tokens.get_mut().next();
+            self.advance();
             return Node::Neg(Neg {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
@@ -1165,7 +1153,7 @@ impl Parser<'_> {
         }
 
         if self.next_token_equals("+") {
-            self.tokens.get_mut().next();
+            self.advance();
             return self.cast();
         }
 
@@ -1366,7 +1354,7 @@ impl Parser<'_> {
 
         Node::Cast(Cast {
             lhs: add_or_sub.into(),
-            ty: ty,
+            ty,
         })
     }
 
@@ -1389,7 +1377,7 @@ impl Parser<'_> {
 
             if self.consume(".") {
                 node = self.struct_ref(node);
-                self.tokens.get_mut().next();
+                self.advance();
                 continue;
             }
 
@@ -1400,7 +1388,7 @@ impl Parser<'_> {
                     ty: Type::None,
                 });
                 node = self.struct_ref(node);
-                self.tokens.get_mut().next();
+                self.advance();
                 continue;
             }
 
@@ -1486,7 +1474,9 @@ impl Parser<'_> {
 
         if self.next_token_kind_is(TokenKind::Identifier) {
             let is_function_call: bool = {
-                let mut tokens_copy = self.tokens.get_mut().clone();
+                let tokens = self.tokens.take().unwrap();
+                let mut tokens_copy = tokens.clone();
+                self.tokens.set(Some(tokens));
                 tokens_copy.next(); // skip ident
                 let res = tokens_copy
                     .next()
@@ -1499,16 +1489,11 @@ impl Parser<'_> {
                 return self.function_call();
             }
 
-            let name = {
-                let mut tokens = self.tokens.get_mut().clone();
-                let token = tokens.peek().unwrap();
-                self.text(token)
-            };
-
+            let name = self.next_token_text();
             let var = self.find_var(name);
             if let Some(Scope::Object { is_global, idx, .. }) = var {
                 let (idx, is_global, ty) = self.get_var(*is_global, *idx);
-                self.tokens.get_mut().next(); // skip ident
+                self.advance(); // skip ident
                 return Node::Variable(Variable {
                     idx,
                     is_local: !is_global,
@@ -1517,7 +1502,7 @@ impl Parser<'_> {
             } else if let Some(Scope::Enumerator { val, ty, .. }) = var {
                 let val = *val;
                 let ty = ty.clone();
-                self.tokens.get_mut().next(); // skip ident
+                self.advance(); // skip ident
                 return Node::Numeric(Numeric { val, ty });
             } else {
                 eprintln!("Unknown variable {}", self.next_token_text());
@@ -1526,7 +1511,7 @@ impl Parser<'_> {
         }
 
         if self.next_token_kind_is(TokenKind::StringLiteral) {
-            let tok = self.peek().unwrap();
+            let tok = self.peek().cloned().unwrap();
             let v = self.str_literal_counter;
             self.str_literal_counter += 1;
             let name = format!(".L..{}", v);
@@ -1537,7 +1522,7 @@ impl Parser<'_> {
             let idx = self.globals.len();
             self.globals.push(var);
 
-            self.tokens.get_mut().next(); // skip str literal
+            self.advance(); // skip str literal
             return Node::Variable(Variable {
                 idx,
                 is_local: false,
@@ -1551,7 +1536,7 @@ impl Parser<'_> {
                 val: tok.val.unwrap(),
                 ty: Type::None,
             });
-            self.tokens.get_mut().next();
+            self.advance();
             return node;
         }
 
@@ -1570,8 +1555,8 @@ impl Parser<'_> {
         let fn_idx = idx.unwrap();
         let name = self.next_token_text().to_string();
 
-        self.tokens.get_mut().next();
-        self.tokens.get_mut().next();
+        self.advance();
+        self.advance();
 
         let mut args: Vec<Node> = Vec::new();
         let mut first = true;
@@ -1677,7 +1662,7 @@ impl Parser<'_> {
         self.find_var_scope(name)
     }
 
-    fn find_func_var(&mut self) -> Option<usize> {
+    fn find_func_var(&self) -> Option<usize> {
         let token = self.peek().unwrap();
         let text = self.text(&token);
         if let Some(Scope::Object {
@@ -1717,7 +1702,7 @@ impl Parser<'_> {
         f
     }
 
-    fn is_typename(&mut self) -> bool {
+    fn is_typename(&self) -> bool {
         {
             let type_keywords = [
                 "char", "int", "struct", "union", "long", "short", "void", "typedef", "_Bool",
@@ -1746,14 +1731,13 @@ impl Parser<'_> {
         }
     }
 
-    fn consume(&mut self, text: &str) -> bool {
-        if let Some(token) = self.peek() {
-            if self.text(&token) == text {
-                self.tokens.get_mut().next();
-                return true;
-            }
+    fn consume(&self, text: &str) -> bool {
+        if self.next_token_equals(text) {
+            self.advance();
+            true
+        } else {
+            false
         }
-        false
     }
 
     // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) type-suffix
@@ -1789,7 +1773,7 @@ impl Parser<'_> {
         }
         let name_token = self.peek().unwrap();
         let name = self.text(&name_token).to_string();
-        self.tokens.get_mut().next();
+        self.advance();
         let ty = self.type_suffix((*ty).clone());
         (ty, name)
     }
@@ -1809,7 +1793,7 @@ impl Parser<'_> {
             });
         }
         let ty = Type::func_type(return_ty, params);
-        self.tokens.get_mut().next();
+        self.advance();
         ty
     }
 
@@ -1821,12 +1805,12 @@ impl Parser<'_> {
             self.func_params(ty)
         } else if self.next_token_equals("[") {
             self.skip("[");
-            let tok = self.peek();
             if !self.next_token_kind_is(TokenKind::Numeric) {
                 eprintln!("Expected a number!");
             }
+            let tok = self.peek().cloned();
             let size = tok.unwrap().val.unwrap();
-            self.tokens.get_mut().next(); // skip number
+            self.advance(); // skip number
             self.skip("]");
 
             let ty = self.type_suffix(ty);
@@ -1840,11 +1824,30 @@ impl Parser<'_> {
         token.text(self.source)
     }
 
-    fn next_token_equals(&mut self, s: &str) -> bool {
+    fn next_token_equals(&self, s: &str) -> bool {
         self.next_token_text() == s
     }
 
-    fn next_token_kind_is(&mut self, kind: TokenKind) -> bool {
+    fn peek(&self) -> Option<&Token> {
+        let tokens = self.tokens.take();
+        if let Some(mut tokens) = tokens {
+            let token = tokens.peek().cloned();
+            self.tokens.set(Some(tokens));
+            token
+        } else {
+            panic!();
+        }
+    }
+
+    fn skip(&self, s: &str) {
+        if !self.next_token_equals(s) {
+            eprintln!("Expected {s}, got '{}'", self.next_token_text());
+            panic!();
+        }
+        self.advance();
+    }
+
+    fn next_token_kind_is(&self, kind: TokenKind) -> bool {
         if let Some(tok) = self.peek() {
             tok.kind == kind
         } else {
@@ -1852,15 +1855,25 @@ impl Parser<'_> {
         }
     }
 
-    fn next_token_text(&mut self) -> &str {
-        if let Some(tok) = self.tokens.get_mut().peek() {
+    fn advance(&self) {
+        let tokens = self.tokens.take();
+        if let Some(mut tokens) = tokens {
+            tokens.next();
+            self.tokens.set(Some(tokens));
+        } else {
+            panic!();
+        }
+    }
+
+    fn next_token_text(&self) -> &str {
+        if let Some(tok) = self.peek() {
             tok.text(self.source)
         } else {
             panic!()
         }
     }
 
-    fn next_token_is_typename(&mut self) -> bool {
+    fn next_token_is_typename(&self) -> bool {
         self.is_typename()
     }
 }

@@ -367,7 +367,6 @@ impl Parser<'_> {
 
             let ident = self.next_token_text().to_string();
             self.tokens.get_mut().next();
-            println!("read enumerator: {ident}");
 
             if self.consume("=") {
                 val = self.peek().unwrap().val.unwrap();

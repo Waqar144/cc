@@ -79,6 +79,7 @@ fn dump(node: &Node, depth: usize) {
         Node::Return(n) => dump(&n.lhs, depth + 1),
         Node::StructMember(n) => dump(&n.lhs, depth + 1),
         Node::FunctionCall(_) => (),
+        Node::Not(n) => dump(&n.lhs, depth + 1),
         Node::Invalid => panic!(),
     }
 }

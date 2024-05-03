@@ -51,6 +51,12 @@ pub struct Neg {
 }
 
 #[derive(Debug)]
+pub struct Not {
+    pub lhs: Box<Node>,
+    pub ty: Type,
+}
+
+#[derive(Debug)]
 pub struct BinaryNode {
     pub ty: Type,
     pub lhs: Box<Node>,
@@ -128,6 +134,7 @@ pub enum Node {
     Return(Return),
     StructMember(StructMembr),
     FunctionCall(FunctionCall),
+    Not(Not),
     Invalid,
 }
 
@@ -314,6 +321,10 @@ impl Node {
                     f.ty = Type::long_type();
                 }
             }
+            Node::Not(n) => {
+                n.lhs.add_type();
+                n.ty = Type::int_type();
+            }
         }
     }
 
@@ -339,6 +350,7 @@ impl Node {
             Node::Return(_) => &Type::None,
             Node::StructMember(s) => &s.member.ty,
             Node::FunctionCall(f) => &f.ty,
+            Node::Not(n) => &n.ty,
         }
     }
 

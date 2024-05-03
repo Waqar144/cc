@@ -90,5 +90,6 @@ pub fn node_name(node: &Node) -> &'static str {
         Node::StructMember(_) => "StructMember",
         Node::FunctionCall(_) => "FunctionCall",
         Node::Invalid => "Invalid",
+        Node::Not(_) => "Not",
     }
 }

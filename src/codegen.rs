@@ -276,6 +276,12 @@ impl CodeGenerator<'_> {
                 self.gen_expr(&c.lhs);
                 self.cast(c.lhs.ty(), &c.ty);
             }
+            Node::Not(n) => {
+                self.gen_expr(&n.lhs);
+                self.emit("  cmp $0, %rax");
+                self.emit("  sete %al");
+                self.emit("  movzx %al, %rax");
+            }
             _ => handled = false,
         }
 

@@ -140,6 +140,33 @@ fn read_char_literal(source: &str) -> Result<(char, usize), &str> {
     Ok((val, read_chars))
 }
 
+fn read_int_literal(source: &str) -> Result<(usize, usize), String> {
+    fn is_alnum(source: &str, i: usize) -> bool {
+        source
+            .chars()
+            .nth(i)
+            .map(|c| c.is_alphanumeric())
+            .unwrap_or(false)
+    }
+
+    let (base, advance) =
+        if (source.starts_with("0x") || source.starts_with("0X")) && is_alnum(source, 2) {
+            (16, 2)
+        } else if (source.starts_with("0b") || source.starts_with("0B")) && is_alnum(source, 2) {
+            (2, 2)
+        } else if source.starts_with('0') {
+            (8, 0)
+        } else {
+            (10, 0)
+        };
+
+    let start = &source[advance..];
+    let count = start.chars().take_while(|c| c.is_digit(base)).count();
+    let num_span = &start[..count];
+    let num = usize::from_str_radix(num_span, base).map_err(|e| e.to_string())?;
+    Ok((num, count + advance))
+}
+
 pub fn tokenize(source: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
 
@@ -179,17 +206,11 @@ pub fn tokenize(source: &str) -> Vec<Token> {
         }
 
         if c.is_ascii_digit() {
-            for (idx, c) in span.char_indices() {
-                if !c.is_ascii_digit() {
-                    // println!("break at {c} {idx} - digit: {}", &span[0..idx]);
-                    let num_span = &span[..idx];
-                    let val = num_span.parse::<usize>().unwrap();
-                    span = &span[idx..];
-                    tokens.push(Token::digit(offset, idx, val, line));
-                    offset += idx;
-                    break;
-                }
-            }
+            let (num, read_chars) = read_int_literal(span)
+                .map_or_else(|err| exit_with_error(&err, line, source, offset), |ok| ok);
+            tokens.push(Token::digit(offset, read_chars, num, line));
+            offset += read_chars;
+            span = &span[read_chars..];
             continue;
         }
 

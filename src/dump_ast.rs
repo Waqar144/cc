@@ -35,12 +35,9 @@ fn dump(node: &Node, depth: usize) {
             }
         }
         Node::Numeric(_) => (),
-        Node::Cast(c) => {
-            dump(&c.lhs, depth + 1);
+        Node::Cast(c) | Node::AddressOf(c) | Node::Dereference(c) | Node::Neg(c) | Node::Not(c) => {
+            dump(&c.lhs, depth + 1)
         }
-        Node::AddressOf(c) => dump(&c.lhs, depth + 1),
-        Node::Dereference(c) => dump(&c.lhs, depth + 1),
-        Node::Neg(n) => dump(&n.lhs, depth + 1),
         Node::Div(n)
         | Node::Add(n)
         | Node::Mul(n)
@@ -79,7 +76,6 @@ fn dump(node: &Node, depth: usize) {
         Node::Return(n) => dump(&n.lhs, depth + 1),
         Node::StructMember(n) => dump(&n.lhs, depth + 1),
         Node::FunctionCall(_) => (),
-        Node::Not(n) => dump(&n.lhs, depth + 1),
         Node::Invalid => panic!(),
     }
 }

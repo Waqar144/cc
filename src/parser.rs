@@ -764,7 +764,7 @@ impl Parser<'_> {
             self.skip("return");
             let mut lhs = self.expr();
             lhs.add_type();
-            let node = Node::Cast(Cast {
+            let node = Node::Cast(Unary {
                 lhs: Box::new(lhs),
                 ty: self.current_fn_return_ty.clone(),
             });
@@ -875,7 +875,7 @@ impl Parser<'_> {
         let expr1 = Node::Assign(BinaryNode {
             ty: Type::None,
             lhs: Node::Variable(var.clone()).into(),
-            rhs: Node::AddressOf(AddressOf {
+            rhs: Node::AddressOf(Unary {
                 lhs,
                 ty: Type::None,
             })
@@ -884,7 +884,7 @@ impl Parser<'_> {
 
         let expr2_rhs = BinaryNode {
             ty: Type::None,
-            lhs: Node::Dereference(Dereference {
+            lhs: Node::Dereference(Unary {
                 lhs: Node::Variable(var.clone()).into(),
                 ty: Type::None,
             })
@@ -893,7 +893,7 @@ impl Parser<'_> {
         };
         let expr2 = Node::Assign(BinaryNode {
             ty: Type::None,
-            lhs: Node::Dereference(Dereference {
+            lhs: Node::Dereference(Unary {
                 lhs: Box::new(Node::Variable(var)),
                 ty: Type::None,
             })
@@ -1114,7 +1114,7 @@ impl Parser<'_> {
 
             let mut lhs = self.cast();
             lhs.add_type();
-            let node = Cast {
+            let node = Unary {
                 lhs: Box::new(lhs),
                 ty: t,
             };
@@ -1130,7 +1130,7 @@ impl Parser<'_> {
         trace!("{}: {}", function!(), self.next_token_text());
         if self.next_token_equals("&") {
             self.advance();
-            return Node::AddressOf(AddressOf {
+            return Node::AddressOf(Unary {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
             });
@@ -1138,7 +1138,7 @@ impl Parser<'_> {
 
         if self.next_token_equals("*") {
             self.advance();
-            return Node::Dereference(Dereference {
+            return Node::Dereference(Unary {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
             });
@@ -1146,7 +1146,7 @@ impl Parser<'_> {
 
         if self.next_token_equals("!") {
             self.advance();
-            return Node::Not(Not {
+            return Node::Not(Unary {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
             });
@@ -1154,7 +1154,7 @@ impl Parser<'_> {
 
         if self.next_token_equals("-") {
             self.advance();
-            return Node::Neg(Neg {
+            return Node::Neg(Unary {
                 lhs: Box::new(self.cast()),
                 ty: Type::None,
             });
@@ -1360,7 +1360,7 @@ impl Parser<'_> {
         add_or_sub.add_type();
         let ty = add_or_sub.ty().clone();
 
-        Node::Cast(Cast {
+        Node::Cast(Unary {
             lhs: add_or_sub.into(),
             ty,
         })
@@ -1376,7 +1376,7 @@ impl Parser<'_> {
             if self.consume("[") {
                 let idx_node = self.expr();
                 self.skip("]");
-                node = Node::Dereference(Dereference {
+                node = Node::Dereference(Unary {
                     lhs: Box::new(self.new_add(node, idx_node)),
                     ty: Type::None,
                 });
@@ -1391,7 +1391,7 @@ impl Parser<'_> {
 
             if self.consume("->") {
                 // x->y is short for (*x).y
-                node = Node::Dereference(Dereference {
+                node = Node::Dereference(Unary {
                     lhs: Box::new(node),
                     ty: Type::None,
                 });
@@ -1581,7 +1581,7 @@ impl Parser<'_> {
             let func_params_ty = &f.ty.as_func().unwrap().params;
 
             if param_idx < func_params_ty.len() {
-                assign = Node::Cast(Cast {
+                assign = Node::Cast(Unary {
                     lhs: Box::new(assign),
                     ty: func_params_ty[param_idx].ty.clone(),
                 });

@@ -21,37 +21,13 @@ pub struct StmtExpr {
 }
 
 #[derive(Debug)]
-pub struct Cast {
-    pub lhs: Box<Node>,
-    pub ty: Type,
-}
-
-#[derive(Debug)]
 pub struct Numeric {
     pub val: usize,
     pub ty: Type,
 }
 
 #[derive(Debug)]
-pub struct AddressOf {
-    pub lhs: Box<Node>,
-    pub ty: Type,
-}
-
-#[derive(Debug)]
-pub struct Dereference {
-    pub lhs: Box<Node>,
-    pub ty: Type,
-}
-
-#[derive(Debug)]
-pub struct Neg {
-    pub lhs: Box<Node>,
-    pub ty: Type,
-}
-
-#[derive(Debug)]
-pub struct Not {
+pub struct Unary {
     pub lhs: Box<Node>,
     pub ty: Type,
 }
@@ -113,10 +89,10 @@ pub enum Node {
     Variable(Variable),
     StmtExpr(StmtExpr),
     Numeric(Numeric),
-    Cast(Cast),
-    AddressOf(AddressOf),
-    Dereference(Dereference),
-    Neg(Neg),
+    Cast(Unary),
+    AddressOf(Unary),
+    Dereference(Unary),
+    Neg(Unary),
     Add(BinaryNode),
     Mul(BinaryNode),
     Sub(BinaryNode),
@@ -134,7 +110,7 @@ pub enum Node {
     Return(Return),
     StructMember(StructMembr),
     FunctionCall(FunctionCall),
-    Not(Not),
+    Not(Unary),
     Invalid,
 }
 
@@ -187,7 +163,7 @@ impl Node {
         // replace prev node with Cast
         let _ = std::mem::replace(
             node,
-            Node::Cast(Cast {
+            Node::Cast(Unary {
                 lhs: Box::new(old_value), // old value moved here
                 ty,
             }),

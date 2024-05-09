@@ -111,6 +111,7 @@ pub enum Node {
     StructMember(StructMembr),
     FunctionCall(FunctionCall),
     Not(Unary),
+    BitNot(Unary),
     Invalid,
 }
 
@@ -301,6 +302,10 @@ impl Node {
                 n.lhs.add_type();
                 n.ty = Type::int_type();
             }
+            Node::BitNot(n) => {
+                n.lhs.add_type();
+                n.ty = n.lhs.ty().clone();
+            }
         }
     }
 
@@ -326,7 +331,7 @@ impl Node {
             Node::Return(_) => &Type::None,
             Node::StructMember(s) => &s.member.ty,
             Node::FunctionCall(f) => &f.ty,
-            Node::Not(n) => &n.ty,
+            Node::BitNot(n) | Node::Not(n) => &n.ty,
         }
     }
 

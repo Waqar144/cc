@@ -1152,6 +1152,14 @@ impl Parser<'_> {
             });
         }
 
+        if self.next_token_equals("~") {
+            self.advance();
+            return Node::BitNot(Unary {
+                lhs: Box::new(self.cast()),
+                ty: Type::None,
+            });
+        }
+
         if self.next_token_equals("-") {
             self.advance();
             return Node::Neg(Unary {

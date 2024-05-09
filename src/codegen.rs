@@ -282,6 +282,10 @@ impl CodeGenerator<'_> {
                 self.emit("  sete %al");
                 self.emit("  movzx %al, %rax");
             }
+            Node::BitNot(n) => {
+                self.gen_expr(&n.lhs);
+                self.emit("  not %rax");
+            }
             _ => handled = false,
         }
 

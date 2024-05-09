@@ -91,5 +91,6 @@ pub fn node_name(node: &Node) -> &'static str {
         Node::FunctionCall(_) => "FunctionCall",
         Node::Invalid => "Invalid",
         Node::Not(_) => "Not",
+        Node::BitNot(_) => "BitNot",
     }
 }

@@ -35,9 +35,12 @@ fn dump(node: &Node, depth: usize) {
             }
         }
         Node::Numeric(_) => (),
-        Node::Cast(c) | Node::AddressOf(c) | Node::Dereference(c) | Node::Neg(c) | Node::Not(c) => {
-            dump(&c.lhs, depth + 1)
-        }
+        Node::Cast(c)
+        | Node::AddressOf(c)
+        | Node::Dereference(c)
+        | Node::Neg(c)
+        | Node::Not(c)
+        | Node::BitNot(c) => dump(&c.lhs, depth + 1),
         Node::Div(n)
         | Node::Add(n)
         | Node::Mul(n)

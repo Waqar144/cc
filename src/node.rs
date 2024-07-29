@@ -97,6 +97,7 @@ pub enum Node {
     Mul(BinaryNode),
     Sub(BinaryNode),
     Div(BinaryNode),
+    Modulus(BinaryNode),
     LessThan(BinaryNode),
     LessThanEq(BinaryNode),
     Eq(BinaryNode),
@@ -127,6 +128,7 @@ impl Node {
             | Node::Eq(b)
             | Node::NotEq(b)
             | Node::Assign(b)
+            | Node::Modulus(b)
             | Node::Comma(b) => Some(b),
             _ => None,
         }
@@ -143,6 +145,7 @@ impl Node {
             | Node::Eq(b)
             | Node::NotEq(b)
             | Node::Assign(b)
+            | Node::Modulus(b)
             | Node::Comma(b) => Some(b),
             _ => None,
         }
@@ -235,7 +238,7 @@ impl Node {
                 Self::cast_into(&mut n.lhs, ty.clone());
                 n.ty = ty;
             }
-            Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => {
+            Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) | Node::Modulus(n) => {
                 n.lhs.add_type();
                 n.rhs.add_type();
                 Self::usual_arithmetic_conversion(&mut n.lhs, &mut n.rhs);
@@ -320,7 +323,7 @@ impl Node {
             Node::AddressOf(a) => &a.ty,
             Node::Dereference(d) => &d.ty,
             Node::Neg(n) => &n.ty,
-            Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) => &n.ty,
+            Node::Add(n) | Node::Mul(n) | Node::Sub(n) | Node::Div(n) | Node::Modulus(n) => &n.ty,
             Node::LessThan(n) | Node::LessThanEq(n) | Node::Eq(n) | Node::NotEq(n) => &n.ty,
             Node::Assign(a) => &a.ty,
             Node::ExprStmt(_) => &Type::None,

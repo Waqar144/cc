@@ -92,5 +92,6 @@ pub fn node_name(node: &Node) -> &'static str {
         Node::Invalid => "Invalid",
         Node::Not(_) => "Not",
         Node::BitNot(_) => "BitNot",
+        Node::Modulus(_) => "Modulus",
     }
 }

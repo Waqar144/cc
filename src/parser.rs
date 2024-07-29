@@ -903,6 +903,7 @@ impl Parser<'_> {
                 '-' => Node::Sub(expr2_rhs).into(),
                 '*' => Node::Mul(expr2_rhs).into(),
                 '/' => Node::Div(expr2_rhs).into(),
+                '%' => Node::Modulus(expr2_rhs).into(),
                 _ => {
                     eprintln!("unexpected op {op}");
                     panic!();
@@ -918,7 +919,7 @@ impl Parser<'_> {
     }
 
     // assign    = equality (assign-op assign)?
-    // assign-op = "=" | "+=" | "-=" | "*=" | "/="
+    // assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%="
     fn assign(&mut self) -> Node {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
@@ -965,6 +966,18 @@ impl Parser<'_> {
                     rhs: assign.into(),
                 }),
                 '/',
+            );
+        }
+
+        if self.consume("%=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::Modulus(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '%',
             );
         }
 
@@ -1091,6 +1104,15 @@ impl Parser<'_> {
             if self.next_token_equals("/") {
                 self.skip("/");
                 node = Node::Div(BinaryNode {
+                    ty: Type::None,
+                    lhs: Box::new(node),
+                    rhs: Box::new(self.cast()),
+                });
+                continue;
+            }
+
+            if self.consume("%") {
+                node = Node::Modulus(BinaryNode {
                     ty: Type::None,
                     lhs: Box::new(node),
                     rhs: Box::new(self.cast()),

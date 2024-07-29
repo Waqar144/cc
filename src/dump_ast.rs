@@ -50,7 +50,8 @@ fn dump(node: &Node, depth: usize) {
         | Node::Eq(n)
         | Node::NotEq(n)
         | Node::Assign(n)
-        | Node::Comma(n) => {
+        | Node::Comma(n)
+        | Node::Modulus(n) => {
             dump(&n.lhs, depth + 1);
             dump(&n.rhs, depth + 1);
         }

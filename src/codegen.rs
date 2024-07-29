@@ -314,13 +314,17 @@ impl CodeGenerator<'_> {
             Node::Add(_) => self.emit(&format!("  add {}, {}", di, ax)),
             Node::Sub(_) => self.emit(&format!("  sub {}, {}", di, ax)),
             Node::Mul(_) => self.emit(&format!("  imul {}, {}", di, ax)),
-            Node::Div(div) => {
+            Node::Div(div) | Node::Modulus(div) => {
                 if div.ty.size() == 8 {
                     self.emit("  cqo");
                 } else {
                     self.emit("  cdq");
                 }
                 self.emit(&format!("  idiv {}", di));
+
+                if let Node::Modulus(_) = node {
+                    self.emit("  mov %rdx, %rax");
+                }
             }
             Node::LessThan(_) | Node::LessThanEq(_) | Node::Eq(_) | Node::NotEq(_) => {
                 self.emit(&format!("  cmp {}, {}", di, ax));

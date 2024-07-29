@@ -226,6 +226,7 @@ pub fn tokenize(source: &str) -> Vec<Token> {
             || span.starts_with("/=")
             || span.starts_with("++")
             || span.starts_with("--")
+            || span.starts_with("%=")
         {
             span = &span[2..];
             tokens.push(Token::op(offset, 2, line));

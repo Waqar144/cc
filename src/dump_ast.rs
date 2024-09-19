@@ -51,7 +51,10 @@ fn dump(node: &Node, depth: usize) {
         | Node::NotEq(n)
         | Node::Assign(n)
         | Node::Comma(n)
-        | Node::Modulus(n) => {
+        | Node::Modulus(n)
+        | Node::BitAnd(n)
+        | Node::BitOr(n)
+        | Node::BitXor(n) => {
             dump(&n.lhs, depth + 1);
             dump(&n.rhs, depth + 1);
         }

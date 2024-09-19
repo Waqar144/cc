@@ -93,5 +93,8 @@ pub fn node_name(node: &Node) -> &'static str {
         Node::Not(_) => "Not",
         Node::BitNot(_) => "BitNot",
         Node::Modulus(_) => "Modulus",
+        Node::BitAnd(_) => "BitAnd",
+        Node::BitOr(_) => "BitOr",
+        Node::BitXor(_) => "BitXor",
     }
 }

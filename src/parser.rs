@@ -904,6 +904,9 @@ impl Parser<'_> {
                 '*' => Node::Mul(expr2_rhs).into(),
                 '/' => Node::Div(expr2_rhs).into(),
                 '%' => Node::Modulus(expr2_rhs).into(),
+                '&' => Node::BitAnd(expr2_rhs).into(),
+                '|' => Node::BitOr(expr2_rhs).into(),
+                '^' => Node::BitXor(expr2_rhs).into(),
                 _ => {
                     eprintln!("unexpected op {op}");
                     panic!();
@@ -923,7 +926,7 @@ impl Parser<'_> {
     fn assign(&mut self) -> Node {
         let _t = TraceRaii::new();
         trace!("{}: {}", function!(), self.next_token_text());
-        let mut node = self.equality();
+        let mut node = self.bitor();
 
         if self.consume("=") {
             node = Node::Assign(BinaryNode {
@@ -981,6 +984,78 @@ impl Parser<'_> {
             );
         }
 
+        if self.consume("&=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::BitAnd(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '&',
+            );
+        }
+
+        if self.consume("|=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::BitOr(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '|',
+            );
+        }
+
+        if self.consume("^=") {
+            let assign = self.assign();
+            node = self.to_assign(
+                Node::BitXor(BinaryNode {
+                    ty: Type::None,
+                    lhs: node.into(),
+                    rhs: assign.into(),
+                }),
+                '^',
+            );
+        }
+
+        node
+    }
+
+    fn bitor(&mut self) -> Node {
+        let mut node = self.bitxor();
+        while self.consume("|") {
+            node = Node::BitOr(BinaryNode {
+                ty: Type::None,
+                lhs: node.into(),
+                rhs: self.bitxor().into(),
+            });
+        }
+        node
+    }
+
+    fn bitxor(&mut self) -> Node {
+        let mut node = self.bitand();
+        while self.consume("^") {
+            node = Node::BitXor(BinaryNode {
+                ty: Type::None,
+                lhs: node.into(),
+                rhs: self.bitand().into(),
+            });
+        }
+        node
+    }
+
+    fn bitand(&mut self) -> Node {
+        let mut node = self.equality();
+        while self.consume("&") {
+            node = Node::BitAnd(BinaryNode {
+                ty: Type::None,
+                lhs: node.into(),
+                rhs: self.equality().into(),
+            });
+        }
         node
     }
 

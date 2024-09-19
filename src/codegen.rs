@@ -326,6 +326,9 @@ impl CodeGenerator<'_> {
                     self.emit("  mov %rdx, %rax");
                 }
             }
+            Node::BitAnd(_) => self.emit("  and %rdi, %rax"),
+            Node::BitOr(_) => self.emit("  or %rdi, %rax"),
+            Node::BitXor(_) => self.emit("  xor %rdi, %rax"),
             Node::LessThan(_) | Node::LessThanEq(_) | Node::Eq(_) | Node::NotEq(_) => {
                 self.emit(&format!("  cmp {}, {}", di, ax));
                 match node {
